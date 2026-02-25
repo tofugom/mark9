@@ -12,3 +12,6 @@ export type {
   OpenDirectoryResult,
   FileTreeNode,
 } from "./file-system.js";
+
+export { FileWatcher } from "./file-watcher.js";
+export type { FileChange } from "./file-watcher.js";

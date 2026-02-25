@@ -80,6 +80,8 @@ export function useFileActions() {
    * Saves the current file. If the current file has a handle, saves to it directly.
    * Otherwise, calls handleSaveAs.
    */
+  const showSaveMessage = useFileStore((s) => s.showSaveMessage);
+
   const handleSave = useCallback(async () => {
     const state = useFileStore.getState();
     const { activeFile, fileHandles, currentContent } = state;
@@ -88,6 +90,7 @@ export function useFileActions() {
       const handle = fileHandles.get(activeFile)!;
       await saveFile(handle, currentContent);
       setDirty(false);
+      showSaveMessage("Saved");
     } else {
       // No existing handle — fall through to Save As
       const fileName = activeFile?.split("/").pop() ?? "untitled.md";
@@ -99,9 +102,10 @@ export function useFileActions() {
         storeOpenFile(path);
         setActiveFile(path);
         setDirty(false);
+        showSaveMessage("Saved");
       }
     }
-  }, [setDirty, setFileHandle, storeOpenFile, setActiveFile]);
+  }, [setDirty, setFileHandle, storeOpenFile, setActiveFile, showSaveMessage]);
 
   /**
    * Opens Save As picker regardless of whether a handle exists.

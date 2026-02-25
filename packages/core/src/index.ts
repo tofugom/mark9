@@ -19,10 +19,12 @@ export {
   openDirectory,
   readFileHandle,
   isFileSystemAccessSupported,
+  FileWatcher,
 } from "./fs/index.js";
 
 export type {
   OpenFileResult,
   OpenDirectoryResult,
   FileTreeNode,
+  FileChange,
 } from "./fs/index.js";

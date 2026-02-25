@@ -1,5 +1,5 @@
 import React from "react";
-import { Code, Eye, Save } from "lucide-react";
+import { Code, Eye, Save, Check } from "lucide-react";
 import { useEditorStore } from "../stores/editor-store.js";
 import { useFileStore } from "../stores/file-store.js";
 
@@ -13,17 +13,18 @@ export function EditorToolbar({
   const mode = useEditorStore((s) => s.mode);
   const toggleMode = useEditorStore((s) => s.toggleMode);
   const dirty = useFileStore((s) => s.dirty);
+  const saveMessage = useFileStore((s) => s.saveMessage);
 
   return (
-    <div className="h-[36px] bg-[#f3f3f3] border-b border-[#e0e0e0] flex items-center px-2 gap-1 shrink-0">
+    <div className="h-[36px] bg-[var(--bg-toolbar)] border-b border-[var(--border-primary)] flex items-center px-2 gap-1 shrink-0">
       {/* Mode toggle */}
       <button
         type="button"
         onClick={toggleMode}
         className={`flex items-center gap-1.5 px-2.5 h-[26px] rounded text-[12px] font-medium transition-colors ${
           mode === "wysiwyg"
-            ? "bg-white text-gray-800 shadow-sm border border-gray-200"
-            : "text-gray-500 hover:bg-gray-200"
+            ? "bg-[var(--toolbar-btn-active-bg)] text-[var(--toolbar-btn-active-text)] shadow-sm border border-[var(--toolbar-btn-active-border)]"
+            : "text-[var(--toolbar-btn-inactive-text)] hover:bg-[var(--toolbar-btn-hover-bg)]"
         }`}
         title="WYSIWYG mode"
       >
@@ -35,8 +36,8 @@ export function EditorToolbar({
         onClick={toggleMode}
         className={`flex items-center gap-1.5 px-2.5 h-[26px] rounded text-[12px] font-medium transition-colors ${
           mode === "source"
-            ? "bg-white text-gray-800 shadow-sm border border-gray-200"
-            : "text-gray-500 hover:bg-gray-200"
+            ? "bg-[var(--toolbar-btn-active-bg)] text-[var(--toolbar-btn-active-text)] shadow-sm border border-[var(--toolbar-btn-active-border)]"
+            : "text-[var(--toolbar-btn-inactive-text)] hover:bg-[var(--toolbar-btn-hover-bg)]"
         }`}
         title="Source code mode (Ctrl+/)"
       >
@@ -51,16 +52,22 @@ export function EditorToolbar({
         <button
           type="button"
           onClick={onSave}
-          className={`flex items-center gap-1.5 px-2.5 h-[26px] rounded text-[12px] font-medium transition-colors ${
+          className={`flex items-center gap-1.5 px-2.5 h-[26px] rounded text-[12px] font-medium transition-all duration-100 ${
             dirty
-              ? "bg-[#007acc] text-white hover:bg-[#006bb3]"
-              : "text-gray-400 bg-gray-100 cursor-default"
+              ? "bg-[var(--accent)] text-white hover:opacity-90 active:scale-90 active:opacity-75 cursor-pointer"
+              : "text-[var(--toolbar-btn-inactive-text)] bg-[var(--toolbar-btn-hover-bg)] cursor-default"
           }`}
           title="Save (Ctrl+S)"
         >
           <Save size={14} />
           Save
         </button>
+      )}
+      {saveMessage && (
+        <div className="flex items-center gap-1 text-[12px] text-green-600 font-medium transition-opacity">
+          <Check size={14} />
+          <span>{saveMessage}</span>
+        </div>
       )}
     </div>
   );

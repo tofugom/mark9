@@ -5,6 +5,8 @@ import { commonmark } from "@milkdown/kit/preset/commonmark";
 import { gfm } from "@milkdown/kit/preset/gfm";
 import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
 import { nord } from "@milkdown/theme-nord";
+import { mermaidPlugin } from "../plugins/mermaid-plugin.js";
+import { imageDropPlugin } from "../plugins/image-drop-plugin.js";
 
 import type { Ctx } from "@milkdown/kit/ctx";
 
@@ -48,7 +50,9 @@ function MilkdownEditor({
         })
         .use(commonmark)
         .use(gfm)
-        .use(listener);
+        .use(listener)
+        .use(mermaidPlugin)
+        .use(imageDropPlugin);
     },
     [],
   );

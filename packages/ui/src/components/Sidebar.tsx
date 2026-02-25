@@ -11,6 +11,7 @@ import {
 import { useLayoutStore } from "../stores/layout-store.js";
 import { useFileStore } from "../stores/file-store.js";
 import { useFileActions } from "../hooks/useFileActions.js";
+import { SettingsPanel } from "./SettingsPanel.js";
 import type { FileNode } from "../stores/file-store.js";
 
 type ActivityTab = "files" | "git" | "settings";
@@ -35,14 +36,14 @@ function FileTreeItem({
       <div>
         <button
           type="button"
-          className="w-full flex items-center gap-1.5 h-[26px] text-[13px] text-gray-300 hover:bg-[#2a2d2e] cursor-pointer"
+          className="w-full flex items-center gap-1.5 h-[26px] text-[13px] text-[var(--text-sidebar)] hover:bg-[var(--bg-hover)] cursor-pointer"
           style={{ paddingLeft: indent }}
           onClick={() => setExpanded((v) => !v)}
         >
           {expanded ? (
-            <ChevronDown size={16} className="shrink-0 text-gray-500" />
+            <ChevronDown size={16} className="shrink-0 text-[var(--text-secondary)]" />
           ) : (
-            <ChevronRight size={16} className="shrink-0 text-gray-500" />
+            <ChevronRight size={16} className="shrink-0 text-[var(--text-secondary)]" />
           )}
           <Folder size={16} className="shrink-0 text-[#dcb67a]" />
           <span className="truncate">{node.name}</span>
@@ -65,8 +66,8 @@ function FileTreeItem({
       type="button"
       className={`w-full flex items-center gap-1.5 h-[26px] text-[13px] cursor-pointer ${
         isActive
-          ? "bg-[#094771] text-white"
-          : "text-gray-300 hover:bg-[#2a2d2e]"
+          ? "bg-[var(--bg-active)] text-white"
+          : "text-[var(--text-sidebar)] hover:bg-[var(--bg-hover)]"
       }`}
       style={{ paddingLeft: indent + 22 }}
       onClick={() => onFileClick(node.path)}
@@ -102,7 +103,7 @@ function ActivityBar({
   ];
 
   return (
-    <div className="w-[48px] bg-[#333333] flex flex-col items-center pt-1 shrink-0 h-full">
+    <div className="w-[48px] bg-[var(--bg-activity)] flex flex-col items-center pt-1 shrink-0 h-full">
       {items.map((item) => (
         <button
           key={item.tab}
@@ -110,7 +111,7 @@ function ActivityBar({
           className={`w-[48px] h-[48px] flex items-center justify-center transition-colors ${
             activeTab === item.tab
               ? "text-white border-l-2 border-white"
-              : "text-[#858585] hover:text-white border-l-2 border-transparent"
+              : "text-[var(--text-secondary)] hover:text-white border-l-2 border-transparent"
           }`}
           onClick={() => onTabChange(item.tab)}
           aria-label={item.label}
@@ -123,7 +124,12 @@ function ActivityBar({
   );
 }
 
-export function Sidebar(): React.ReactElement | null {
+export interface SidebarProps {
+  /** Optional custom Git panel to render when the "git" tab is active */
+  gitPanel?: React.ReactNode;
+}
+
+export function Sidebar({ gitPanel }: SidebarProps = {}): React.ReactElement | null {
   const sidebarOpen = useLayoutStore((s) => s.sidebarOpen);
   const sidebarWidth = useLayoutStore((s) => s.sidebarWidth);
   const fileTree = useFileStore((s) => s.fileTree);
@@ -139,10 +145,10 @@ export function Sidebar(): React.ReactElement | null {
       <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div
-        className="bg-[#252526] border-r border-[#1e1e1e] overflow-y-auto h-full"
+        className="bg-[var(--bg-sidebar)] border-r border-[var(--border-sidebar)] overflow-y-auto h-full"
         style={{ width: sidebarWidth }}
       >
-        <div className="h-[35px] flex items-center px-5 text-[11px] font-semibold text-[#bbbbbb] uppercase tracking-widest">
+        <div className="h-[35px] flex items-center px-5 text-[11px] font-semibold text-[var(--text-sidebar)] uppercase tracking-widest">
           {activeTab === "files" && "Explorer"}
           {activeTab === "git" && "Source Control"}
           {activeTab === "settings" && "Settings"}
@@ -151,7 +157,7 @@ export function Sidebar(): React.ReactElement | null {
         {activeTab === "files" && (
           <div className="pb-2">
             {fileTree.length === 0 ? (
-              <div className="px-5 py-3 text-[13px] text-[#858585]">
+              <div className="px-5 py-3 text-[13px] text-[var(--text-secondary)]">
                 No folder opened
               </div>
             ) : (
@@ -168,16 +174,14 @@ export function Sidebar(): React.ReactElement | null {
         )}
 
         {activeTab === "git" && (
-          <div className="px-5 py-3 text-[13px] text-[#858585]">
-            No changes detected
-          </div>
+          gitPanel ?? (
+            <div className="px-5 py-3 text-[13px] text-[var(--text-secondary)]">
+              No changes detected
+            </div>
+          )
         )}
 
-        {activeTab === "settings" && (
-          <div className="px-5 py-3 text-[13px] text-[#858585]">
-            Settings
-          </div>
-        )}
+        {activeTab === "settings" && <SettingsPanel />}
       </div>
     </div>
   );

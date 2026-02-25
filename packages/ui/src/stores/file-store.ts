@@ -16,6 +16,7 @@ export interface FileState {
   currentContent: string;
   fileHandles: Map<string, FileSystemFileHandle>;
   directoryHandle: FileSystemDirectoryHandle | null;
+  saveMessage: string | null;
   setFileTree: (tree: FileNode[]) => void;
   setActiveFile: (path: string | null) => void;
   openFile: (path: string) => void;
@@ -24,6 +25,7 @@ export interface FileState {
   setCurrentContent: (content: string) => void;
   setFileHandle: (path: string, handle: FileSystemFileHandle) => void;
   setDirectoryHandle: (handle: FileSystemDirectoryHandle | null) => void;
+  showSaveMessage: (msg: string) => void;
 }
 
 export const useFileStore = create<FileState>((set) => ({
@@ -34,6 +36,7 @@ export const useFileStore = create<FileState>((set) => ({
   currentContent: "",
   fileHandles: new Map(),
   directoryHandle: null,
+  saveMessage: null,
   setFileTree: (tree: FileNode[]) => set({ fileTree: tree }),
   setActiveFile: (path: string | null) => set({ activeFile: path }),
   openFile: (path: string) =>
@@ -61,4 +64,8 @@ export const useFileStore = create<FileState>((set) => ({
     }),
   setDirectoryHandle: (handle: FileSystemDirectoryHandle | null) =>
     set({ directoryHandle: handle }),
+  showSaveMessage: (msg: string) => {
+    set({ saveMessage: msg });
+    setTimeout(() => set({ saveMessage: null }), 2000);
+  },
 }));

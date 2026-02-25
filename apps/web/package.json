@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@mark9/core": "workspace:*",
+    "@mark9/plugin-git": "workspace:*",
     "@mark9/ui": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

@@ -5,7 +5,10 @@ import {
   EditorToolbar,
   useFileStore,
   useFileActions,
+  useThemeStore,
+  useAutoSave,
 } from "@mark9/ui";
+import { GitPanel } from "@mark9/plugin-git";
 
 const MOCK_FILES: Record<string, string> = {
   "/docs/README.md": `# Welcome to Mark9
@@ -36,6 +39,16 @@ console.log("Hello, Mark9!");
 - Unordered item B
 
 ---
+
+## Architecture
+
+\`\`\`mermaid
+graph TD
+    A[Markdown Input] --> B[Milkdown Parser]
+    B --> C[ProseMirror State]
+    C --> D[WYSIWYG View]
+    C --> E[Source View]
+\`\`\`
 
 Start editing to see the **WYSIWYG** magic!
 `,
@@ -120,6 +133,9 @@ const mockFileTree = [
 ];
 
 function App() {
+  useThemeStore(); // Initialize theme from localStorage
+  useAutoSave(); // Auto-save based on settings
+
   const setFileTree = useFileStore((s) => s.setFileTree);
   const setActiveFile = useFileStore((s) => s.setActiveFile);
   const setDirty = useFileStore((s) => s.setDirty);
@@ -178,7 +194,7 @@ function App() {
   const editorContent = activeFile ? fileContents[activeFile] ?? "" : "";
 
   return (
-    <AppLayout>
+    <AppLayout gitPanel={<GitPanel />}>
       <div className="flex flex-col h-full">
         <EditorToolbar onSave={handleSave} />
         <DualEditor

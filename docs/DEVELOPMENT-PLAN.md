@@ -298,3 +298,12 @@ Agent 1 (Infrastructure)
 ## 5. 시작 명령
 
 Agent 1 (Infrastructure) 부터 시작하며, 완료 즉시 Agent 2와 Agent 4를 병렬 실행합니다.
+
+
+
+```java
+public static void main(String[] args){
+  
+}
+```
+
