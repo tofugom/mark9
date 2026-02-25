@@ -33,6 +33,11 @@ pnpm-debug.log*
 
 # Testing
 coverage/
+playwright-report/
+test-results/
+
+# Electrobun desktop build artifacts
+apps/desktop/build/
 
 # Misc
 *.swp
