@@ -1,5 +1,11 @@
 import { useEffect, useCallback, useState } from "react";
-import { AppLayout, DualEditor, useFileStore, useFileActions } from "@mark9/ui";
+import {
+  AppLayout,
+  DualEditor,
+  EditorToolbar,
+  useFileStore,
+  useFileActions,
+} from "@mark9/ui";
 
 const MOCK_FILES: Record<string, string> = {
   "/docs/README.md": `# Welcome to Mark9
@@ -173,12 +179,15 @@ function App() {
 
   return (
     <AppLayout>
-      <DualEditor
-        key={activeFile ?? "default"}
-        defaultValue={editorContent}
-        onChange={handleChange}
-        className="h-full"
-      />
+      <div className="flex flex-col h-full">
+        <EditorToolbar onSave={handleSave} />
+        <DualEditor
+          key={activeFile ?? "default"}
+          defaultValue={editorContent}
+          onChange={handleChange}
+          className="flex-1 min-h-0"
+        />
+      </div>
     </AppLayout>
   );
 }

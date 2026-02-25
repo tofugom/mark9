@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
 import { Editor, rootCtx, defaultValueCtx } from "@milkdown/kit/core";
 import { commonmark } from "@milkdown/kit/preset/commonmark";
@@ -9,7 +9,7 @@ import { nord } from "@milkdown/theme-nord";
 import type { Ctx } from "@milkdown/kit/ctx";
 
 export interface Mark9EditorProps {
-  /** Initial markdown content. */
+  /** Initial markdown content (only used on mount). */
   defaultValue?: string;
   /** Called whenever the markdown content changes. */
   onChange?: (markdown: string) => void;
@@ -21,42 +21,41 @@ function MilkdownEditor({
   defaultValue,
   onChange,
 }: Omit<Mark9EditorProps, "className">): React.ReactElement {
+  // Use refs so the editor doesn't reinitialize on prop changes
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  const defaultValueRef = useRef(defaultValue);
+
   useEditor(
     (root: HTMLElement) => {
       return Editor.make()
         .config(nord)
         .config((ctx: Ctx) => {
           ctx.set(rootCtx, root);
-          if (defaultValue) {
-            ctx.set(defaultValueCtx, defaultValue);
+          if (defaultValueRef.current) {
+            ctx.set(defaultValueCtx, defaultValueRef.current);
           }
-          if (onChange) {
-            ctx
-              .get(listenerCtx)
-              .markdownUpdated(
-                (_ctx: Ctx, markdown: string, prevMarkdown: string) => {
-                  if (markdown !== prevMarkdown) {
-                    onChange(markdown);
-                  }
-                },
-              );
-          }
+          ctx
+            .get(listenerCtx)
+            .markdownUpdated(
+              (_ctx: Ctx, markdown: string, prevMarkdown: string) => {
+                if (markdown !== prevMarkdown) {
+                  onChangeRef.current?.(markdown);
+                }
+              },
+            );
         })
         .use(commonmark)
         .use(gfm)
         .use(listener);
     },
-    [defaultValue, onChange],
+    [],
   );
 
   return <Milkdown />;
 }
 
-/**
- * Mark9Editor - A WYSIWYG Markdown editor component backed by Milkdown.
- *
- * Provides commonmark editing with the Nord theme and optional change callbacks.
- */
 export function Mark9Editor({
   defaultValue,
   onChange,

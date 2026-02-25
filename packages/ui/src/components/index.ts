@@ -13,3 +13,6 @@ export { Outline } from "./Outline.js";
 export { Sidebar } from "./Sidebar.js";
 export { StatusBar } from "./StatusBar.js";
 export { TitleBar } from "./TitleBar.js";
+
+export { EditorToolbar } from "./EditorToolbar.js";
+export type { EditorToolbarProps } from "./EditorToolbar.js";

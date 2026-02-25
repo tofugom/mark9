@@ -9,12 +9,14 @@ export {
   Sidebar,
   StatusBar,
   TitleBar,
+  EditorToolbar,
 } from "./components/index.js";
 
 export type {
   Mark9EditorProps,
   SourceEditorProps,
   DualEditorProps,
+  EditorToolbarProps,
 } from "./components/index.js";
 
 export { useKeyboardShortcuts, useFileActions } from "./hooks/index.js";

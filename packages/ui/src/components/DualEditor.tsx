@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useCallback, useRef } from "react";
 import { Mark9Editor } from "./Mark9Editor.js";
 import { SourceEditor } from "./SourceEditor.js";
 import { useEditorStore } from "../stores/editor-store.js";
@@ -14,8 +14,7 @@ export interface DualEditorProps {
 
 /**
  * DualEditor switches between WYSIWYG (Milkdown) and Source (CodeMirror) mode.
- *
- * It maintains internal markdown state so content is preserved when toggling modes.
+ * Content is tracked via a ref so the correct value is passed when switching modes.
  */
 export function DualEditor({
   defaultValue = "",
@@ -24,34 +23,30 @@ export function DualEditor({
 }: DualEditorProps): React.ReactElement {
   const mode = useEditorStore((s) => s.mode);
 
-  // Internal markdown state shared between both editors.
-  const [markdown, setMarkdown] = useState(defaultValue);
+  // Track latest markdown via ref (no re-render on edit)
+  const markdownRef = useRef(defaultValue);
   const onChangeRef = useRef(onChange);
-
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
+  onChangeRef.current = onChange;
 
   const handleChange = useCallback((newMarkdown: string) => {
-    setMarkdown(newMarkdown);
+    markdownRef.current = newMarkdown;
     onChangeRef.current?.(newMarkdown);
   }, []);
 
-  // Use a key that changes with mode so the WYSIWYG editor re-mounts with fresh content
-  // when switching back from source mode.
+  // Key changes when mode switches → editor remounts with latest content
   return (
     <div className={className}>
       {mode === "wysiwyg" ? (
         <Mark9Editor
           key={`wysiwyg-${mode}`}
-          defaultValue={markdown}
+          defaultValue={markdownRef.current}
           onChange={handleChange}
           className="h-full"
         />
       ) : (
         <SourceEditor
           key={`source-${mode}`}
-          value={markdown}
+          value={markdownRef.current}
           onChange={handleChange}
           className="h-full"
         />
