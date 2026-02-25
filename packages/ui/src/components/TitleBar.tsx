@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Menu, FileUp, FolderOpen, Save, SaveAll } from "lucide-react";
-import { useLayoutStore } from "../stores/layout-store.js";
 import { useFileStore } from "../stores/file-store.js";
 import { useFileActions } from "../hooks/useFileActions.js";
 
@@ -63,15 +62,12 @@ function FileMenu({
   return (
     <div
       ref={menuRef}
-      className="absolute top-full left-0 mt-1 w-56 bg-gray-800 border border-gray-700 rounded-md shadow-xl z-50 py-1"
+      className="absolute top-full left-0 mt-1 w-56 bg-[#252526] border border-[#454545] rounded shadow-xl z-50 py-1"
     >
       {items.map((item, i) => {
         if ("type" in item && item.type === "separator") {
           return (
-            <div
-              key={`sep-${i}`}
-              className="my-1 border-t border-gray-700"
-            />
+            <div key={`sep-${i}`} className="my-1 border-t border-[#454545]" />
           );
         }
 
@@ -86,7 +82,7 @@ function FileMenu({
           <button
             key={menuItem.label}
             type="button"
-            className="w-full flex items-center gap-3 px-3 py-1.5 text-sm text-gray-200 hover:bg-gray-700 transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-1.5 text-[13px] text-[#cccccc] hover:bg-[#094771] transition-colors"
             onClick={() => {
               menuItem.action();
               onClose();
@@ -95,7 +91,9 @@ function FileMenu({
             {menuItem.icon}
             <span className="flex-1 text-left">{menuItem.label}</span>
             {menuItem.shortcut && (
-              <span className="text-xs text-gray-500">{menuItem.shortcut}</span>
+              <span className="text-[11px] text-[#858585]">
+                {menuItem.shortcut}
+              </span>
             )}
           </button>
         );
@@ -105,7 +103,6 @@ function FileMenu({
 }
 
 export function TitleBar(): React.ReactElement {
-  const toggleSidebar = useLayoutStore((s) => s.toggleSidebar);
   const activeFile = useFileStore((s) => s.activeFile);
   const dirty = useFileStore((s) => s.dirty);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -115,43 +112,32 @@ export function TitleBar(): React.ReactElement {
     : "Untitled";
 
   return (
-    <div className="bg-gray-900 text-white h-10 flex items-center px-4 select-none shrink-0">
-      <div className="relative flex items-center gap-1">
+    <div className="bg-[#3c3c3c] text-[#cccccc] h-[30px] flex items-center select-none shrink-0 border-b border-[#252526]">
+      {/* Left: menu + sidebar toggle */}
+      <div className="relative flex items-center">
         <button
           type="button"
-          className="p-1 rounded hover:bg-gray-700 transition-colors"
+          className="h-[30px] w-[46px] flex items-center justify-center hover:bg-[#505050] transition-colors"
           onClick={() => setMenuOpen((v) => !v)}
           aria-label="File menu"
         >
-          <Menu size={18} />
+          <Menu size={16} />
         </button>
-
         <FileMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
-
-        <button
-          type="button"
-          className="p-1 rounded hover:bg-gray-700 transition-colors text-xs text-gray-400"
-          onClick={toggleSidebar}
-          aria-label="Toggle sidebar"
-          title="Toggle sidebar (Ctrl+Shift+E)"
-        >
-          |||
-        </button>
       </div>
 
-      <div className="flex-1 flex items-center justify-center gap-2 text-sm">
-        <span className="font-semibold tracking-wide">Mark9</span>
-        <span className="text-gray-400">/</span>
-        <span className="text-gray-300">
+      {/* Center: app name + file name */}
+      <div className="flex-1 flex items-center justify-center gap-1.5 text-[13px]">
+        <span className="text-[#cccccc]">
           {fileName}
-          {dirty && (
-            <span className="inline-block ml-1 w-2 h-2 rounded-full bg-orange-400 align-middle" />
-          )}
+          {dirty && <span className="ml-1 text-white">&bull;</span>}
         </span>
+        <span className="text-[#858585]">—</span>
+        <span className="text-[#858585]">Mark9</span>
       </div>
 
-      {/* Spacer to balance the left side */}
-      <div className="w-[60px]" />
+      {/* Right: window controls placeholder */}
+      <div className="w-[46px]" />
     </div>
   );
 }

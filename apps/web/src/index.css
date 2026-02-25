@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../../../packages/ui/src/**/*.{ts,tsx}";
+@source "../../../packages/core/src/**/*.{ts,tsx}";
 
 /* Milkdown Editor Styles */
 .milkdown {
