@@ -1,1 +1,204 @@
 @import "tailwindcss";
+
+/* Milkdown Editor Styles */
+.milkdown {
+  outline: none;
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  line-height: 1.7;
+  color: #1f2937;
+}
+
+.milkdown h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.milkdown h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.milkdown h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.milkdown h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.milkdown p {
+  margin-bottom: 0.75rem;
+}
+
+.milkdown strong {
+  font-weight: 700;
+}
+
+.milkdown em {
+  font-style: italic;
+}
+
+.milkdown del {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+.milkdown blockquote {
+  border-left: 4px solid #3b82f6;
+  padding: 0.5rem 1rem;
+  margin: 1rem 0;
+  background-color: #eff6ff;
+  color: #374151;
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.milkdown code {
+  background-color: #f3f4f6;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+}
+
+.milkdown pre {
+  background-color: #1f2937;
+  color: #e5e7eb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.milkdown pre code {
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 0.875rem;
+}
+
+.milkdown ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.milkdown ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.milkdown li {
+  margin-bottom: 0.25rem;
+}
+
+.milkdown hr {
+  border: none;
+  border-top: 2px solid #e5e7eb;
+  margin: 1.5rem 0;
+}
+
+.milkdown a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.milkdown a:hover {
+  color: #1d4ed8;
+}
+
+.milkdown img {
+  max-width: 100%;
+  border-radius: 0.5rem;
+}
+
+.milkdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.milkdown th,
+.milkdown td {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.milkdown th {
+  background-color: #f9fafb;
+  font-weight: 600;
+}
+
+/* ProseMirror selection styles */
+.ProseMirror-selectednode {
+  outline: 2px solid #3b82f6;
+  border-radius: 0.25rem;
+}
+
+.ProseMirror:focus {
+  outline: none;
+}
+
+/* GFM Task List */
+.milkdown li[data-item-type="task"] {
+  list-style: none;
+  position: relative;
+  margin-left: -1.5rem;
+  padding-left: 1.5rem;
+}
+
+.milkdown li[data-item-type="task"] input[type="checkbox"] {
+  margin-right: 0.5rem;
+  accent-color: #3b82f6;
+}
+
+/* GFM Table Enhancements */
+.milkdown tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.milkdown tr:hover {
+  background-color: #f3f4f6;
+}
+
+/* GFM Strikethrough */
+.milkdown del {
+  text-decoration: line-through;
+  color: #9ca3af;
+  opacity: 0.8;
+}
+
+/* CodeMirror Source Editor */
+.cm-editor {
+  height: 100%;
+  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+  font-size: 14px;
+}
+
+.cm-editor .cm-scroller {
+  padding: 1rem;
+}
+
+.cm-editor.cm-focused {
+  outline: none;
+}
