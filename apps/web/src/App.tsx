@@ -1,7 +1,8 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { AppLayout, DualEditor, useFileStore, useFileActions } from "@mark9/ui";
 
-const SAMPLE_MARKDOWN = `# Welcome to Mark9
+const MOCK_FILES: Record<string, string> = {
+  "/docs/README.md": `# Welcome to Mark9
 
 A **WYSIWYG** Markdown editor by *tofu9*.
 
@@ -30,31 +31,73 @@ console.log("Hello, Mark9!");
 
 ---
 
-## GFM Features
+Start editing to see the **WYSIWYG** magic!
+`,
+  "/docs/guide.md": `# Mark9 User Guide
 
-### Table
+## Getting Started
 
-| Feature | Status |
-|---------|--------|
-| Bold | Supported |
-| Tables | Supported |
-| Task Lists | Supported |
+Mark9 is a WYSIWYG Markdown editor. Just start typing!
 
-### Task List
+## Keyboard Shortcuts
 
-- [x] Set up monorepo
-- [x] Integrate Milkdown editor
-- [ ] Add GFM support
-- [ ] Add source code view
+| Shortcut | Action |
+|----------|--------|
+| Ctrl+B | **Bold** |
+| Ctrl+I | *Italic* |
+| Ctrl+/ | Toggle Source View |
+| Ctrl+S | Save |
+| Ctrl+O | Open File |
+| Ctrl+Shift+E | Toggle Sidebar |
 
-### Strikethrough
+## GFM Support
 
-This is ~~deleted text~~ and this is normal text.
+Mark9 supports GitHub Flavored Markdown including:
+
+- [x] Tables
+- [x] Task lists
+- [x] Strikethrough
+- [ ] Footnotes (coming soon)
+`,
+  "/notes.md": `# Notes
+
+## Ideas
+
+- Explore Mermaid.js diagram support
+- Add dark theme and sepia theme
+- Implement Git sync plugin
+
+## References
+
+> The best writing tool is the one that gets out of your way.
 
 ---
 
-Start editing to see the **WYSIWYG** magic!
-`;
+*Last updated: 2026-02-25*
+`,
+  "/todo.md": `# TODO
+
+## Phase 1 — MVP
+- [x] Set up monorepo (Turborepo + pnpm)
+- [x] Integrate Milkdown editor
+- [x] Add GFM support (tables, task lists, strikethrough)
+- [x] Source code view toggle (CodeMirror 6)
+- [x] UI shell (sidebar, title bar, status bar)
+- [x] File open/save
+
+## Phase 2 — Mermaid + Themes
+- [ ] Mermaid.js integration
+- [ ] Diagram inline editing UX
+- [ ] Light / Dark / Sepia themes
+- [ ] Image handling (drag & drop, paste)
+- [ ] Outline panel
+
+## Phase 3 — Git + Desktop
+- [ ] Git plugin (isomorphic-git)
+- [ ] Electrobun desktop app
+- [ ] Native filesystem integration
+`,
+};
 
 const mockFileTree = [
   {
@@ -74,61 +117,64 @@ function App() {
   const setFileTree = useFileStore((s) => s.setFileTree);
   const setActiveFile = useFileStore((s) => s.setActiveFile);
   const setDirty = useFileStore((s) => s.setDirty);
+  const activeFile = useFileStore((s) => s.activeFile);
   const currentContent = useFileStore((s) => s.currentContent);
   const setCurrentContent = useFileStore((s) => s.setCurrentContent);
   const { handleSave, handleOpenFile } = useFileActions();
 
-  // Initialize with mock file tree and sample content if nothing is loaded
+  // Per-file content map: preserves edits when switching between files
+  const [fileContents, setFileContents] = useState<Record<string, string>>(MOCK_FILES);
+
+  // Initialize mock file tree
   useEffect(() => {
-    const state = useFileStore.getState();
-    if (state.fileTree.length === 0) {
-      setFileTree(mockFileTree);
-      setActiveFile("/docs/README.md");
-    }
-    if (!state.currentContent) {
-      setCurrentContent(SAMPLE_MARKDOWN);
-    }
+    setFileTree(mockFileTree);
+    setActiveFile("/docs/README.md");
+    setCurrentContent(MOCK_FILES["/docs/README.md"]);
   }, [setFileTree, setActiveFile, setCurrentContent]);
 
-  // Keyboard shortcuts: Ctrl+S to save, Ctrl+O to open file
+  // Sync real file content (from File System Access API) into local map
+  useEffect(() => {
+    if (activeFile && currentContent && !fileContents[activeFile]) {
+      setFileContents((prev) => ({ ...prev, [activeFile]: currentContent }));
+    }
+  }, [activeFile, currentContent, fileContents]);
+
+  // Keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
-
       if (mod && e.key === "s") {
         e.preventDefault();
         handleSave();
-        return;
       }
-
       if (mod && e.key === "o") {
         e.preventDefault();
         handleOpenFile();
-        return;
       }
     }
-
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSave, handleOpenFile]);
 
+  // On edit: update both the per-file map and the store
   const handleChange = useCallback(
     (markdown: string) => {
+      if (activeFile) {
+        setFileContents((prev) => ({ ...prev, [activeFile]: markdown }));
+      }
       setCurrentContent(markdown);
       setDirty(true);
     },
-    [setCurrentContent, setDirty],
+    [activeFile, setCurrentContent, setDirty],
   );
 
-  // Use currentContent for the editor; fall back to sample if empty
-  const editorContent = currentContent || SAMPLE_MARKDOWN;
+  // Content for current file — read directly from local map (synchronous, no lag)
+  const editorContent = activeFile ? fileContents[activeFile] ?? "" : "";
 
   return (
     <AppLayout>
       <DualEditor
-        key={editorContent}
+        key={activeFile ?? "default"}
         defaultValue={editorContent}
         onChange={handleChange}
         className="h-full"
