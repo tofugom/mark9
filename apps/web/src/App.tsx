@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import {
   AppLayout,
   DualEditor,
@@ -9,6 +9,33 @@ import {
   useAutoSave,
 } from "@mark9/ui";
 import { GitPanel } from "@mark9/plugin-git";
+import {
+  useCollab,
+  useCollabFile,
+  CollabToolbar,
+  UserList,
+  UserAvatars,
+  ConnectionStatus,
+  JoinDialog,
+} from "@mark9/collab";
+
+const COLLAB_SERVER_URL = "ws://localhost:4444";
+
+/** Find the first file node in a tree (depth-first). */
+function findFirstFile(
+  nodes: { name: string; path: string; type: string; children?: unknown[] }[],
+): string | null {
+  for (const n of nodes) {
+    if (n.type === "file") return n.path;
+    if (n.children) {
+      const found = findFirstFile(
+        n.children as typeof nodes,
+      );
+      if (found) return found;
+    }
+  }
+  return null;
+}
 
 const MOCK_FILES: Record<string, string> = {
   "/docs/README.md": `# Welcome to Mark9
@@ -147,6 +174,53 @@ function App() {
   // Per-file content map: preserves edits when switching between files
   const [fileContents, setFileContents] = useState<Record<string, string>>(MOCK_FILES);
 
+  // Collab state
+  const fileContentsRef = useRef(fileContents);
+  fileContentsRef.current = fileContents;
+
+  const {
+    isActive: collabActive,
+    initWorkspace,
+  } = useCollab({
+    onFileTreeSync: useCallback(
+      (tree) => {
+        // Joiner: update sidebar file tree from the host's shared data
+        const mapped = tree.map((n) => ({
+          ...n,
+          children: n.children?.map((c) => ({ ...c })),
+        }));
+        setFileTree(mapped);
+
+        // Auto-select first file if nothing is active yet
+        const current = useFileStore.getState().activeFile;
+        if (!current) {
+          const first = findFirstFile(mapped);
+          if (first) {
+            setActiveFile(first);
+          }
+        }
+      },
+      [setFileTree, setActiveFile],
+    ),
+  });
+  const collabConfig = useCollabFile(activeFile);
+  const [showJoinDialog, setShowJoinDialog] = useState(false);
+
+  // Host: push workspace into Yjs after starting a session
+  const handleSessionStarted = useCallback(() => {
+    const tree = mockFileTree.map((n) => ({
+      name: n.name,
+      path: n.path,
+      type: n.type,
+      children: n.children?.map((c) => ({
+        name: c.name,
+        path: c.path,
+        type: c.type,
+      })),
+    }));
+    initWorkspace(tree, fileContentsRef.current);
+  }, [initWorkspace]);
+
   // Initialize mock file tree
   useEffect(() => {
     setFileTree(mockFileTree);
@@ -193,18 +267,49 @@ function App() {
   // Content for current file — read directly from local map (synchronous, no lag)
   const editorContent = activeFile ? fileContents[activeFile] ?? "" : "";
 
+  // Collab panels
+  const collabPanel = (
+    <div>
+      <CollabToolbar
+        serverUrl={COLLAB_SERVER_URL}
+        onJoinClick={() => setShowJoinDialog(true)}
+        onSessionStarted={handleSessionStarted}
+      />
+      {collabActive && <UserList />}
+    </div>
+  );
+
   return (
-    <AppLayout gitPanel={<GitPanel />}>
-      <div className="flex flex-col h-full">
-        <EditorToolbar onSave={handleSave} />
-        <DualEditor
-          key={activeFile ?? "default"}
-          defaultValue={editorContent}
-          onChange={handleChange}
-          className="flex-1 min-h-0"
+    <>
+      <AppLayout
+        gitPanel={<GitPanel />}
+        collabPanel={collabPanel}
+        collabStatus={<ConnectionStatus />}
+      >
+        <div className="flex flex-col h-full">
+          <EditorToolbar
+            onSave={handleSave}
+            collabAvatars={
+              collabActive ? <UserAvatars currentFile={activeFile} /> : undefined
+            }
+          />
+          <DualEditor
+            key={activeFile ?? "default"}
+            defaultValue={editorContent}
+            onChange={handleChange}
+            className="flex-1 min-h-0"
+            collabConfig={collabConfig}
+          />
+        </div>
+      </AppLayout>
+
+      {showJoinDialog && (
+        <JoinDialog
+          serverUrl={COLLAB_SERVER_URL}
+          onClose={() => setShowJoinDialog(false)}
         />
-      </div>
-    </AppLayout>
+      )}
+    </>
   );
 }
 

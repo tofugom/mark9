@@ -3,6 +3,7 @@ import {
   Files,
   GitBranch,
   Settings,
+  Users,
   ChevronRight,
   ChevronDown,
   FileText,
@@ -14,7 +15,7 @@ import { useFileActions } from "../hooks/useFileActions.js";
 import { SettingsPanel } from "./SettingsPanel.js";
 import type { FileNode } from "../stores/file-store.js";
 
-type ActivityTab = "files" | "git" | "settings";
+type ActivityTab = "files" | "git" | "collab" | "settings";
 
 function FileTreeItem({
   node,
@@ -99,6 +100,7 @@ function ActivityBar({
       icon: <GitBranch size={24} />,
       label: "Source Control",
     },
+    { tab: "collab", icon: <Users size={24} />, label: "Collaboration" },
     { tab: "settings", icon: <Settings size={24} />, label: "Settings" },
   ];
 
@@ -110,8 +112,8 @@ function ActivityBar({
           type="button"
           className={`w-[48px] h-[48px] flex items-center justify-center transition-colors ${
             activeTab === item.tab
-              ? "text-white border-l-2 border-white"
-              : "text-[var(--text-secondary)] hover:text-white border-l-2 border-transparent"
+              ? "text-[var(--accent)] border-l-2 border-[var(--accent)]"
+              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-l-2 border-transparent"
           }`}
           onClick={() => onTabChange(item.tab)}
           aria-label={item.label}
@@ -127,9 +129,11 @@ function ActivityBar({
 export interface SidebarProps {
   /** Optional custom Git panel to render when the "git" tab is active */
   gitPanel?: React.ReactNode;
+  /** Optional custom Collab panel to render when the "collab" tab is active */
+  collabPanel?: React.ReactNode;
 }
 
-export function Sidebar({ gitPanel }: SidebarProps = {}): React.ReactElement | null {
+export function Sidebar({ gitPanel, collabPanel }: SidebarProps = {}): React.ReactElement | null {
   const sidebarOpen = useLayoutStore((s) => s.sidebarOpen);
   const sidebarWidth = useLayoutStore((s) => s.sidebarWidth);
   const fileTree = useFileStore((s) => s.fileTree);
@@ -151,6 +155,7 @@ export function Sidebar({ gitPanel }: SidebarProps = {}): React.ReactElement | n
         <div className="h-[35px] flex items-center px-5 text-[11px] font-semibold text-[var(--text-sidebar)] uppercase tracking-widest">
           {activeTab === "files" && "Explorer"}
           {activeTab === "git" && "Source Control"}
+          {activeTab === "collab" && "Collaboration"}
           {activeTab === "settings" && "Settings"}
         </div>
 
@@ -177,6 +182,14 @@ export function Sidebar({ gitPanel }: SidebarProps = {}): React.ReactElement | n
           gitPanel ?? (
             <div className="px-5 py-3 text-[13px] text-[var(--text-secondary)]">
               No changes detected
+            </div>
+          )
+        )}
+
+        {activeTab === "collab" && (
+          collabPanel ?? (
+            <div className="px-5 py-3 text-[13px] text-[var(--text-secondary)]">
+              Start or join a collaboration session
             </div>
           )
         )}

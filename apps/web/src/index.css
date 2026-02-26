@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @source "../../../packages/ui/src/**/*.{ts,tsx}";
 @source "../../../packages/core/src/**/*.{ts,tsx}";
+@source "../../../packages/collab/src/**/*.{ts,tsx}";
 
 /* ── Theme Variables (Typora GitHub style) ────────────────────────── */
 
@@ -730,3 +731,55 @@
 [data-theme="sepia"] .codeblock-wrapper .hljs-name { color: #4a6741; }
 [data-theme="sepia"] .codeblock-wrapper .hljs-selector-class,
 [data-theme="sepia"] .codeblock-wrapper .hljs-selector-id { color: #6b5a34; }
+
+/* ── Yjs Collaborative Cursor Styles ──────────────────────────── */
+/* y-prosemirror v1.3.7 uses:
+   - .ProseMirror-yjs-cursor  (cursor caret span, with a child <div> showing the name)
+   - .ProseMirror-yjs-selection (selection highlight decoration) */
+
+/* Remote cursor caret */
+.ProseMirror-yjs-cursor {
+  position: relative;
+  border-left: 2px solid;
+  margin-left: -1px;
+  margin-right: -1px;
+  word-break: normal;
+  pointer-events: none;
+}
+
+/* Cursor name label (child div rendered by defaultCursorBuilder) */
+.ProseMirror-yjs-cursor > div {
+  position: absolute;
+  left: -1px;
+  top: -1.4em;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 3px 3px 3px 0;
+  color: #fff;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+/* Fade out label after idle — re-show on container hover */
+.ProseMirror:not(:hover) .ProseMirror-yjs-cursor > div {
+  animation: yjs-cursor-fadeout 3s forwards;
+}
+
+@keyframes yjs-cursor-fadeout {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.ProseMirror:hover .ProseMirror-yjs-cursor > div {
+  opacity: 1;
+}
+
+/* Remote user selection highlight */
+.ProseMirror-yjs-selection {
+  /* background-color is set inline by the plugin with user.color + "70" alpha */
+}

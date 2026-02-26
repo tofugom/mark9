@@ -4,7 +4,12 @@ import { useEditorStore } from "../stores/editor-store.js";
 import { useFileStore } from "../stores/file-store.js";
 import { useThemeStore } from "../stores/theme-store.js";
 
-export function StatusBar(): React.ReactElement {
+export interface StatusBarProps {
+  /** Optional collab connection status element. */
+  collabStatus?: React.ReactNode;
+}
+
+export function StatusBar({ collabStatus }: StatusBarProps = {}): React.ReactElement {
   const cursorLine = useEditorStore((s) => s.cursorLine);
   const cursorCol = useEditorStore((s) => s.cursorCol);
   const mode = useEditorStore((s) => s.mode);
@@ -55,6 +60,7 @@ export function StatusBar(): React.ReactElement {
           <span>{themeLabel}</span>
         </button>
         <span>GFM</span>
+        {collabStatus}
       </div>
     </div>
   );
