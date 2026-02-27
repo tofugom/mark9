@@ -7,9 +7,11 @@ import { useThemeStore } from "../stores/theme-store.js";
 export interface StatusBarProps {
   /** Optional collab connection status element. */
   collabStatus?: React.ReactNode;
+  /** Current git branch name (defaults to "main"). */
+  branch?: string;
 }
 
-export function StatusBar({ collabStatus }: StatusBarProps = {}): React.ReactElement {
+export function StatusBar({ collabStatus, branch }: StatusBarProps = {}): React.ReactElement {
   const cursorLine = useEditorStore((s) => s.cursorLine);
   const cursorCol = useEditorStore((s) => s.cursorCol);
   const mode = useEditorStore((s) => s.mode);
@@ -34,7 +36,7 @@ export function StatusBar({ collabStatus }: StatusBarProps = {}): React.ReactEle
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1">
           <GitBranch size={12} />
-          <span>main</span>
+          <span>{branch || "main"}</span>
         </div>
         {saveMessage && (
           <div className="flex items-center gap-1 animate-fade-in">

@@ -17,14 +17,26 @@ import type { FileNode } from "../stores/file-store.js";
 
 type ActivityTab = "files" | "git" | "collab" | "settings";
 
+/** Git status badge colors */
+const GIT_STATUS_COLORS: Record<string, { text: string; label: string }> = {
+  modified: { text: "text-yellow-500", label: "M" },
+  added: { text: "text-green-500", label: "A" },
+  deleted: { text: "text-red-500", label: "D" },
+  untracked: { text: "text-green-400", label: "U" },
+};
+
 function FileTreeItem({
   node,
   depth,
   onFileClick,
+  gitStatus,
+  gitStatusMap,
 }: {
   node: FileNode;
   depth: number;
   onFileClick: (path: string) => void;
+  gitStatus?: string;
+  gitStatusMap?: Map<string, string>;
 }): React.ReactElement {
   const [expanded, setExpanded] = useState(depth === 0);
   const activeFile = useFileStore((s) => s.activeFile);
@@ -56,6 +68,8 @@ function FileTreeItem({
               node={child}
               depth={depth + 1}
               onFileClick={onFileClick}
+              gitStatus={gitStatusMap?.get(child.path)}
+              gitStatusMap={gitStatusMap}
             />
           ))}
       </div>
@@ -77,7 +91,14 @@ function FileTreeItem({
         size={16}
         className={`shrink-0 ${isActive ? "text-white" : "text-[#519aba]"}`}
       />
-      <span className="truncate">{node.name}</span>
+      <span className={`truncate flex-1 ${gitStatus && GIT_STATUS_COLORS[gitStatus] ? GIT_STATUS_COLORS[gitStatus].text : ""}`}>
+        {node.name}
+      </span>
+      {gitStatus && GIT_STATUS_COLORS[gitStatus] && (
+        <span className={`text-[11px] font-medium mr-2 ${GIT_STATUS_COLORS[gitStatus].text}`}>
+          {GIT_STATUS_COLORS[gitStatus].label}
+        </span>
+      )}
     </button>
   );
 }
@@ -131,14 +152,27 @@ export interface SidebarProps {
   gitPanel?: React.ReactNode;
   /** Optional custom Collab panel to render when the "collab" tab is active */
   collabPanel?: React.ReactNode;
+  /** Git file statuses for showing badges on file tree items */
+  gitFileStatuses?: { filepath: string; status: string }[];
 }
 
-export function Sidebar({ gitPanel, collabPanel }: SidebarProps = {}): React.ReactElement | null {
+export function Sidebar({ gitPanel, collabPanel, gitFileStatuses }: SidebarProps = {}): React.ReactElement | null {
   const sidebarOpen = useLayoutStore((s) => s.sidebarOpen);
   const sidebarWidth = useLayoutStore((s) => s.sidebarWidth);
   const fileTree = useFileStore((s) => s.fileTree);
   const [activeTab, setActiveTab] = useState<ActivityTab>("files");
   const { handleFileTreeClick } = useFileActions();
+
+  // Build a map of filepath -> status for quick lookup
+  const gitStatusMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    gitFileStatuses?.forEach((entry) => {
+      // Normalize path: add leading "/" if missing
+      const path = entry.filepath.startsWith("/") ? entry.filepath : `/${entry.filepath}`;
+      map.set(path, entry.status);
+    });
+    return map;
+  }, [gitFileStatuses]);
 
   if (!sidebarOpen) {
     return null;
@@ -172,6 +206,8 @@ export function Sidebar({ gitPanel, collabPanel }: SidebarProps = {}): React.Rea
                   node={node}
                   depth={0}
                   onFileClick={handleFileTreeClick}
+                  gitStatus={gitStatusMap.get(node.path)}
+                  gitStatusMap={gitStatusMap}
                 />
               ))
             )}

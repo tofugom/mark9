@@ -7,6 +7,7 @@ import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
 import { nord } from "@milkdown/theme-nord";
 import { mermaidPlugin } from "../plugins/mermaid-plugin.js";
 import { imageDropPlugin } from "../plugins/image-drop-plugin.js";
+import { mathPlugin } from "../plugins/math-plugin.js";
 import {
   ySyncMilkdownPlugin,
   yCursorMilkdownPlugin,
@@ -44,18 +45,10 @@ function MilkdownEditor({
         .config(nord)
         .config((ctx: Ctx) => {
           ctx.set(rootCtx, root);
-          if (collabConfig) {
-            // Collab mode: set defaultValue only when fragment is empty (host
-            // initializing). ySyncPlugin will sync the ProseMirror content into
-            // the fragment. For joiners, the fragment arrives via Yjs sync and
-            // ySyncPlugin populates the editor from it — defaultValue is skipped.
-            if (
-              collabConfig.xmlFragment.length === 0 &&
-              defaultValueRef.current
-            ) {
-              ctx.set(defaultValueCtx, defaultValueRef.current);
-            }
-          } else if (defaultValueRef.current) {
+          // Always set defaultValue when available. In collab mode:
+          // - Host (empty fragment): ySyncPlugin writes PM content → fragment
+          // - Joiner (synced fragment): ySyncPlugin overwrites PM with fragment content
+          if (defaultValueRef.current) {
             ctx.set(defaultValueCtx, defaultValueRef.current);
           }
           ctx
@@ -72,7 +65,8 @@ function MilkdownEditor({
         .use(gfm)
         .use(listener)
         .use(mermaidPlugin)
-        .use(imageDropPlugin);
+        .use(imageDropPlugin)
+        .use(mathPlugin);
 
       // Add Yjs collab plugins synchronously when collab is active
       if (collabConfig) {

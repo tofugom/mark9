@@ -7,8 +7,11 @@ import {
   useFileActions,
   useThemeStore,
   useAutoSave,
+  useEditorStore,
+  useLayoutStore,
+  useCommandStore,
 } from "@mark9/ui";
-import { GitPanel } from "@mark9/plugin-git";
+import { GitPanel, useGitStore, getFs } from "@mark9/plugin-git";
 import {
   useCollab,
   useCollabFile,
@@ -18,6 +21,7 @@ import {
   ConnectionStatus,
   JoinDialog,
 } from "@mark9/collab";
+import { ExportDialog } from "@mark9/plugin-export";
 
 const COLLAB_SERVER_URL = "ws://localhost:4444";
 
@@ -76,6 +80,14 @@ graph TD
     C --> D[WYSIWYG View]
     C --> E[Source View]
 \`\`\`
+
+## Math Support
+
+Inline math: $E = mc^2$ and $\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$.
+
+Block math:
+
+$$\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}$$
 
 Start editing to see the **WYSIWYG** magic!
 `,
@@ -171,6 +183,10 @@ function App() {
   const setCurrentContent = useFileStore((s) => s.setCurrentContent);
   const { handleSave, handleOpenFile } = useFileActions();
 
+  // Git state for StatusBar and file tree badges
+  const gitBranch = useGitStore((s) => s.currentBranch);
+  const gitFileStatuses = useGitStore((s) => s.fileStatuses);
+
   // Per-file content map: preserves edits when switching between files
   const [fileContents, setFileContents] = useState<Record<string, string>>(MOCK_FILES);
 
@@ -205,6 +221,7 @@ function App() {
   });
   const collabConfig = useCollabFile(activeFile);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   // Host: push workspace into Yjs after starting a session
   const handleSessionStarted = useCallback(() => {
@@ -221,11 +238,37 @@ function App() {
     initWorkspace(tree, fileContentsRef.current);
   }, [initWorkspace]);
 
-  // Initialize mock file tree
+  // Initialize mock file tree + git repo
   useEffect(() => {
     setFileTree(mockFileTree);
     setActiveFile("/docs/README.md");
     setCurrentContent(MOCK_FILES["/docs/README.md"]);
+
+    // Write mock files to LightningFS and initialize git repo
+    (async () => {
+      try {
+        const fs = getFs();
+        const pfs = fs.promises;
+        // Create directories
+        await pfs.mkdir("/docs").catch(() => {});
+        // Write files
+        for (const [path, content] of Object.entries(MOCK_FILES)) {
+          await pfs.writeFile(path, content, "utf8");
+        }
+        // Initialize git and make initial commit
+        const gitStore = useGitStore.getState();
+        await gitStore.setRepoDir("/");
+        if (!useGitStore.getState().isGitRepo) {
+          await gitStore.initRepo();
+          await gitStore.stageAll();
+          await gitStore.commit("Initial commit");
+        }
+        await gitStore.refreshStatus();
+        await gitStore.refreshLog();
+      } catch (err) {
+        console.warn("[git] Failed to initialize git repo:", err);
+      }
+    })();
   }, [setFileTree, setActiveFile, setCurrentContent]);
 
   // Sync real file content (from File System Access API) into local map
@@ -252,11 +295,119 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSave, handleOpenFile]);
 
+  // Register commands for the command palette
+  useEffect(() => {
+    const editorStore = useEditorStore.getState();
+    const layoutStore = useLayoutStore.getState();
+    const themeStore = useThemeStore.getState();
+    const gitStore = useGitStore.getState();
+
+    useCommandStore.getState().registerCommands([
+      // Editor commands
+      {
+        id: "editor.toggleMode",
+        label: "Toggle WYSIWYG / Source",
+        category: "Editor",
+        shortcut: "Ctrl+/",
+        execute: () => editorStore.toggleMode(),
+      },
+      // File commands
+      {
+        id: "file.open",
+        label: "Open File",
+        category: "File",
+        shortcut: "Ctrl+O",
+        execute: () => handleOpenFile(),
+      },
+      {
+        id: "file.save",
+        label: "Save",
+        category: "File",
+        shortcut: "Ctrl+S",
+        execute: () => handleSave(),
+      },
+      // View commands
+      {
+        id: "view.toggleSidebar",
+        label: "Toggle Sidebar",
+        category: "View",
+        shortcut: "Ctrl+Shift+E",
+        execute: () => layoutStore.toggleSidebar(),
+      },
+      // Theme commands
+      {
+        id: "theme.light",
+        label: "Switch to Light Theme",
+        category: "Theme",
+        execute: () => useThemeStore.getState().setTheme("light"),
+      },
+      {
+        id: "theme.dark",
+        label: "Switch to Dark Theme",
+        category: "Theme",
+        execute: () => useThemeStore.getState().setTheme("dark"),
+      },
+      {
+        id: "theme.sepia",
+        label: "Switch to Sepia Theme",
+        category: "Theme",
+        execute: () => useThemeStore.getState().setTheme("sepia"),
+      },
+      {
+        id: "theme.cycle",
+        label: "Cycle Theme",
+        category: "Theme",
+        execute: () => themeStore.cycleTheme(),
+      },
+      // Git commands
+      {
+        id: "git.stageAll",
+        label: "Stage All Changes",
+        category: "Git",
+        execute: () => void gitStore.stageAll(),
+      },
+      {
+        id: "git.commit",
+        label: "Commit Staged Changes",
+        category: "Git",
+        execute: () => {
+          const msg = prompt("Commit message:");
+          if (msg) void gitStore.commit(msg);
+        },
+      },
+      {
+        id: "git.refresh",
+        label: "Refresh Git Status",
+        category: "Git",
+        execute: () => void gitStore.refreshStatus(),
+      },
+      // Export commands
+      {
+        id: "export.dialog",
+        label: "Export Document...",
+        category: "Export",
+        execute: () => setShowExportDialog(true),
+      },
+    ]);
+  }, [handleSave, handleOpenFile]);
+
+  // Debounced write to LightningFS so git can detect changes
+  const writeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // On edit: update both the per-file map and the store
   const handleChange = useCallback(
     (markdown: string) => {
       if (activeFile) {
         setFileContents((prev) => ({ ...prev, [activeFile]: markdown }));
+
+        // Debounced write to LightningFS for git tracking
+        if (writeTimerRef.current) clearTimeout(writeTimerRef.current);
+        writeTimerRef.current = setTimeout(() => {
+          const fs = getFs();
+          fs.promises.writeFile(activeFile, markdown, "utf8").then(() => {
+            useGitStore.getState().refreshStatus();
+          }).catch(() => {});
+        }, 1000);
       }
       setCurrentContent(markdown);
       setDirty(true);
@@ -285,6 +436,8 @@ function App() {
         gitPanel={<GitPanel />}
         collabPanel={collabPanel}
         collabStatus={<ConnectionStatus />}
+        branch={gitBranch}
+        gitFileStatuses={gitFileStatuses}
       >
         <div className="flex flex-col h-full">
           <EditorToolbar
@@ -309,6 +462,13 @@ function App() {
           onClose={() => setShowJoinDialog(false)}
         />
       )}
+
+      <ExportDialog
+        isOpen={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
+        markdown={currentContent}
+        fileName={activeFile?.split("/").pop() ?? "document.md"}
+      />
     </>
   );
 }

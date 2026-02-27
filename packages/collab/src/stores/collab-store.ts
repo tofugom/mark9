@@ -37,6 +37,7 @@ export const useCollabStore = create<CollabState>((set, get) => ({
   users: [],
   localUserName: loadUserName(),
   localUserColor: assignColor(loadUserName()),
+  synced: false,
 
   startSession: (serverUrl: string, userName: string): string => {
     try {
@@ -59,6 +60,7 @@ export const useCollabStore = create<CollabState>((set, get) => ({
         roomId,
         connectionState: "connecting",
         isHost: true,
+        synced: true, // Host is the data source — always "synced"
         localUserName: userName,
         localUserColor: color,
       });
@@ -93,6 +95,7 @@ export const useCollabStore = create<CollabState>((set, get) => ({
         roomId,
         connectionState: "connecting",
         isHost: false,
+        synced: false, // Joiner must wait for Yjs sync
         localUserName: userName,
         localUserColor: color,
       });
@@ -115,6 +118,7 @@ export const useCollabStore = create<CollabState>((set, get) => ({
       roomId: null,
       connectionState: "disconnected",
       isHost: false,
+      synced: false,
       users: [],
     });
   },
@@ -176,6 +180,14 @@ function setupConnectionListeners(set: SetFn): void {
       connectionState:
         status === "connected" ? "connected" : "connecting",
     });
+  });
+
+  // Track initial document sync (important for joiners)
+  provider.on("sync", (isSynced: boolean) => {
+    if (isSynced) {
+      console.log("[collab] Initial document sync complete");
+      set({ synced: true });
+    }
   });
 
   // Track connected users via awareness

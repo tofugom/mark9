@@ -53,6 +53,8 @@ export interface CollabState {
   localUserName: string;
   /** Local user color (derived from name). */
   localUserColor: string;
+  /** Whether the initial Yjs document sync has completed. */
+  synced: boolean;
 
   // ── Actions ──────────────────────────────────────────────
 

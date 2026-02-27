@@ -12,6 +12,8 @@ export interface SourceEditorProps {
   onChange: (value: string) => void;
   /** Additional CSS class name. */
   className?: string;
+  /** When true, the editor is read-only (e.g. during collab mode). */
+  readOnly?: boolean;
 }
 
 /**
@@ -21,6 +23,7 @@ export function SourceEditor({
   value,
   onChange,
   className,
+  readOnly = false,
 }: SourceEditorProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -87,6 +90,7 @@ export function SourceEditor({
         keymap.of([...defaultKeymap, ...historyKeymap]),
         EditorView.updateListener.of(handleUpdate),
         EditorView.lineWrapping,
+        EditorState.readOnly.of(readOnly),
       ],
     });
 

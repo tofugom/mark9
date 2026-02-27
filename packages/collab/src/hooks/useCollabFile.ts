@@ -14,6 +14,7 @@ import type { CollabConfig } from "../types.js";
  */
 export function useCollabFile(filePath: string | null): CollabConfig | null {
   const isActive = useCollabStore((s) => s.isActive);
+  const synced = useCollabStore((s) => s.synced);
 
   // Update awareness when the active file changes
   useEffect(() => {
@@ -22,7 +23,9 @@ export function useCollabFile(filePath: string | null): CollabConfig | null {
     manager?.setCurrentFile(filePath);
   }, [filePath, isActive]);
 
-  if (!isActive || !filePath) return null;
+  // Don't return config until initial sync is complete (prevents joiners
+  // from mounting the editor with an empty fragment)
+  if (!isActive || !synced || !filePath) return null;
 
   const manager = getWorkspaceManager();
   if (!manager) return null;

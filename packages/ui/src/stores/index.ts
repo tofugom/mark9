@@ -15,3 +15,6 @@ export type { SettingsState, AutoSaveInterval } from "./settings-store.js";
 
 export { useRecentFilesStore } from "./recent-files-store.js";
 export type { RecentFilesState, RecentFileEntry } from "./recent-files-store.js";
+
+export { useCommandStore } from "./command-store.js";
+export type { CommandState, Command } from "./command-store.js";

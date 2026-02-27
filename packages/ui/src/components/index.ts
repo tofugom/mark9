@@ -20,3 +20,4 @@ export { EditorToolbar } from "./EditorToolbar.js";
 export type { EditorToolbarProps } from "./EditorToolbar.js";
 
 export { SettingsPanel } from "./SettingsPanel.js";
+export { CommandPalette } from "./CommandPalette.js";

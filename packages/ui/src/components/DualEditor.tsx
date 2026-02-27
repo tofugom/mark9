@@ -58,6 +58,7 @@ export function DualEditor({
           value={markdownRef.current}
           onChange={handleChange}
           className="h-full"
+          readOnly={!!collabConfig}
         />
       )}
     </div>

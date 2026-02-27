@@ -28,3 +28,5 @@ export type {
   FileTreeNode,
   FileChange,
 } from "./fs/index.js";
+
+export { isDesktop, isWeb } from "./platform/index.js";

@@ -783,3 +783,49 @@
 .ProseMirror-yjs-selection {
   /* background-color is set inline by the plugin with user.color + "70" alpha */
 }
+
+/* ── KaTeX Math Rendering ──────────────────────────────────────── */
+
+/* Hide raw $...$ source when rendered math is shown */
+.math-source-hidden {
+  font-size: 0;
+  overflow: hidden;
+  width: 0;
+  display: inline;
+  color: transparent;
+}
+
+/* Subtle highlight when editing a math expression */
+.math-source-editing {
+  background-color: var(--editor-code-bg);
+  border-radius: 3px;
+  padding: 0 2px;
+  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  color: var(--accent);
+}
+
+/* Inline rendered math */
+.math-inline-rendered {
+  display: inline;
+  cursor: pointer;
+}
+
+.math-inline-rendered:hover {
+  background-color: var(--editor-code-bg);
+  border-radius: 3px;
+}
+
+/* Block rendered math */
+.math-block-rendered {
+  display: block;
+  text-align: center;
+  margin: 1rem 0;
+  padding: 0.5rem;
+  cursor: pointer;
+}
+
+.math-block-rendered:hover {
+  background-color: var(--editor-code-bg);
+  border-radius: 6px;
+}

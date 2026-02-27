@@ -11,6 +11,7 @@ export {
   TitleBar,
   EditorToolbar,
   SettingsPanel,
+  CommandPalette,
 } from "./components/index.js";
 
 export type {
@@ -31,6 +32,7 @@ export {
   useThemeStore,
   useSettingsStore,
   useRecentFilesStore,
+  useCommandStore,
 } from "./stores/index.js";
 
 export type {
@@ -45,11 +47,14 @@ export type {
   AutoSaveInterval,
   RecentFilesState,
   RecentFileEntry,
+  CommandState,
+  Command,
 } from "./stores/index.js";
 
 export {
   imageDropPlugin,
   mermaidPlugin,
+  mathPlugin,
   fileToDataUrl,
   isImageFile,
 } from "./plugins/index.js";
