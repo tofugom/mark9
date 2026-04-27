@@ -1,19 +1,12 @@
 import React from "react";
-import {
-  Save,
-  Type,
-  Indent,
-  WrapText,
-  Hash,
-} from "lucide-react";
+import { Type, Palette } from "lucide-react";
 import { useSettingsStore } from "../stores/settings-store.js";
-import type { AutoSaveInterval } from "../stores/settings-store.js";
+import { useThemeStore, type ThemeName } from "../stores/theme-store.js";
 
-const AUTO_SAVE_OPTIONS: { value: AutoSaveInterval; label: string }[] = [
-  { value: "off", label: "Off" },
-  { value: "1s", label: "1s" },
-  { value: "5s", label: "5s" },
-  { value: "30s", label: "30s" },
+const THEME_OPTIONS: { value: ThemeName; label: string }[] = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "sepia", label: "Sepia" },
 ];
 
 function SettingRow({
@@ -36,14 +29,14 @@ function SettingRow({
   );
 }
 
-function SegmentedControl({
+function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
 }: {
-  options: { value: string; label: string }[];
-  value: string;
-  onChange: (value: string) => void;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
 }): React.ReactElement {
   return (
     <div className="flex rounded border border-[var(--border-sidebar)] overflow-hidden">
@@ -65,57 +58,23 @@ function SegmentedControl({
   );
 }
 
-function Toggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      className={`relative w-[36px] h-[20px] rounded-full transition-colors cursor-pointer ${
-        checked ? "bg-[var(--accent)]" : "bg-[var(--border-sidebar)]"
-      }`}
-      onClick={() => onChange(!checked)}
-    >
-      <span
-        className={`absolute top-[2px] w-[16px] h-[16px] rounded-full bg-white transition-transform ${
-          checked ? "left-[18px]" : "left-[2px]"
-        }`}
-      />
-    </button>
-  );
-}
-
 export function SettingsPanel(): React.ReactElement {
-  const autoSave = useSettingsStore((s) => s.autoSave);
   const fontSize = useSettingsStore((s) => s.fontSize);
-  const tabSize = useSettingsStore((s) => s.tabSize);
-  const wordWrap = useSettingsStore((s) => s.wordWrap);
-  const showLineNumbers = useSettingsStore((s) => s.showLineNumbers);
-
-  const setAutoSave = useSettingsStore((s) => s.setAutoSave);
   const setFontSize = useSettingsStore((s) => s.setFontSize);
-  const setTabSize = useSettingsStore((s) => s.setTabSize);
-  const setWordWrap = useSettingsStore((s) => s.setWordWrap);
-  const setShowLineNumbers = useSettingsStore((s) => s.setShowLineNumbers);
+  const theme = useThemeStore((s) => s.theme);
+  const setTheme = useThemeStore((s) => s.setTheme);
 
   return (
     <div className="pb-2">
-      {/* Section: Editor */}
       <div className="px-4 pt-2 pb-1 text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-        Editor
+        Appearance
       </div>
 
-      <SettingRow icon={<Save size={14} />} label="Auto-save">
+      <SettingRow icon={<Palette size={14} />} label="Theme">
         <SegmentedControl
-          options={AUTO_SAVE_OPTIONS}
-          value={autoSave}
-          onChange={(v) => setAutoSave(v as AutoSaveInterval)}
+          options={THEME_OPTIONS}
+          value={theme}
+          onChange={setTheme}
         />
       </SettingRow>
 
@@ -134,25 +93,6 @@ export function SettingsPanel(): React.ReactElement {
             {fontSize}px
           </span>
         </div>
-      </SettingRow>
-
-      <SettingRow icon={<Indent size={14} />} label="Tab size">
-        <SegmentedControl
-          options={[
-            { value: "2", label: "2" },
-            { value: "4", label: "4" },
-          ]}
-          value={String(tabSize)}
-          onChange={(v) => setTabSize(Number(v))}
-        />
-      </SettingRow>
-
-      <SettingRow icon={<WrapText size={14} />} label="Word wrap">
-        <Toggle checked={wordWrap} onChange={setWordWrap} />
-      </SettingRow>
-
-      <SettingRow icon={<Hash size={14} />} label="Line numbers">
-        <Toggle checked={showLineNumbers} onChange={setShowLineNumbers} />
       </SettingRow>
     </div>
   );
