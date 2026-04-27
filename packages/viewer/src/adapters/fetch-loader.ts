@@ -1,9 +1,13 @@
 /**
  * Loader that resolves a document path to markdown content.
  * The host app picks an implementation that fits its routing model.
+ *
+ * Implementations may also provide `save` to support live editing. When
+ * `save` is omitted, the viewer treats the document as read-only.
  */
 export interface DocumentLoader {
   load(path: string): Promise<string>;
+  save?(path: string, content: string): Promise<void>;
 }
 
 export interface FetchLoaderOptions {

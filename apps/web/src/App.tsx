@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useThemeStore } from "@mark9/ui";
 import {
   Mark9Viewer,
@@ -91,12 +91,17 @@ const MOCK_FILE_TREE = [
 /**
  * DocumentLoader backed by the project's LightningFS instance — the same
  * virtual filesystem the git plugin uses. The MD files live as real entries
- * in the FS, persisted in IndexedDB.
+ * in the FS, persisted in IndexedDB. `save` writes back so live edits are
+ * picked up on the next load.
  */
 class LightningFsLoader implements DocumentLoader {
   async load(path: string): Promise<string> {
     const buf = await getFs().promises.readFile(path, "utf8");
     return typeof buf === "string" ? buf : new TextDecoder().decode(buf);
+  }
+
+  async save(path: string, content: string): Promise<void> {
+    await getFs().promises.writeFile(path, content, "utf8");
   }
 }
 
@@ -239,6 +244,7 @@ function EmbedDemo({
 }) {
   const [path, setPath] = useState<string>("/docs/README.md");
   const [content, setContent] = useState<string>("");
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -249,6 +255,15 @@ function EmbedDemo({
       cancelled = true;
     };
   }, [path, loader]);
+
+  const handleChange = (md: string) => {
+    setContent(md);
+    if (!loader.save) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void loader.save!(path, md);
+    }, 600);
+  };
 
   return (
     <div className="h-full grid grid-cols-[200px_1fr] bg-[var(--bg-app)]">
@@ -276,6 +291,8 @@ function EmbedDemo({
         markdown={content}
         commentsAdapter={commentsAdapter}
         author="demo-user"
+        editable
+        onChange={handleChange}
         className="overflow-y-auto p-6"
       />
     </div>

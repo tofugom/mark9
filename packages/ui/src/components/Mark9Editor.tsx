@@ -13,6 +13,7 @@ import { nord } from "@milkdown/theme-nord";
 import { mermaidPlugin } from "../plugins/mermaid-plugin.js";
 import { imageDropPlugin } from "../plugins/image-drop-plugin.js";
 import { mathPlugin } from "../plugins/math-plugin.js";
+import { useSettingsStore } from "../stores/settings-store.js";
 
 import type { Ctx } from "@milkdown/kit/ctx";
 
@@ -81,9 +82,11 @@ export function Mark9Editor({
   className,
   readOnly,
 }: Mark9EditorProps): React.ReactElement {
+  const fontSize = useSettingsStore((s) => s.fontSize);
+
   return (
     <MilkdownProvider>
-      <div className={className}>
+      <div className={className} style={{ fontSize: `${fontSize}px` }}>
         <MilkdownEditor
           defaultValue={defaultValue}
           onChange={onChange}

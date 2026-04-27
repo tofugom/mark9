@@ -13,29 +13,45 @@ import { CommentMargin } from "./components/CommentMargin.js";
 export interface Mark9ViewerProps {
   /** Path identifier for the document. Used as the comments key. */
   documentPath: string;
-  /** Markdown source. The viewer always renders this read-only. */
+  /** Markdown source. */
   markdown: string;
   /** Optional adapter — when provided, comment authoring is enabled. */
   commentsAdapter?: CommentsAdapter | null;
   /** Author name attached to new comments. */
   author?: string;
+  /**
+   * When true, the rendered preview is editable (WYSIWYG). The host receives
+   * edits via `onChange`. Defaults to false (true read-only viewer).
+   */
+  editable?: boolean;
+  /**
+   * Fired when the markdown changes in editable mode. The host is responsible
+   * for persisting (debounced save, autosave, etc).
+   */
+  onChange?(markdown: string): void;
   className?: string;
 }
 
 /**
- * Read-only Markdown preview component. Drop into any React app:
+ * Markdown preview component — defaults to read-only, opt-in to live WYSIWYG
+ * editing via `editable + onChange`. Drop into any React app:
  *
  *   <Mark9Viewer documentPath="/docs/foo.md" markdown={text} />
  *
- * Supply `commentsAdapter` to enable Slack-canvas-style commenting on the
- * rendered output (text selection -> "Add comment" bubble -> threads in the
- * side panel exposed via `<CommentSidePanel>` from `@mark9/comments`).
+ *   <Mark9Viewer documentPath="..." markdown={...}
+ *                editable onChange={save} />
+ *
+ * Supply `commentsAdapter` to enable Slack-canvas-style commenting (text
+ * selection -> "Add comment" bubble -> threads in the side panel exposed via
+ * `<CommentSidePanel>` from `@mark9/comments`).
  */
 export function Mark9Viewer({
   documentPath,
   markdown,
   commentsAdapter,
   author = "anonymous",
+  editable = false,
+  onChange,
   className,
 }: Mark9ViewerProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -137,11 +153,13 @@ export function Mark9Viewer({
     <div ref={containerRef} className={`relative ${className ?? ""}`}>
       <style>{HIGHLIGHT_STYLES}</style>
       <Mark9Editor
-        // Read-only viewer: remount whenever the source changes so we don't
-        // get stuck with an empty editor while async loaders fill in content.
-        key={`${documentPath}:${markdown.length}`}
+        // Remount whenever the source changes so we don't get stuck with an
+        // empty editor while async loaders fill in content. We also include
+        // `editable` so toggling read-only/editable rebuilds the editor state.
+        key={`${documentPath}:${markdown.length}:${editable ? "edit" : "ro"}`}
         defaultValue={markdown}
-        readOnly
+        readOnly={!editable}
+        onChange={editable ? onChange : undefined}
         className="h-full"
       />
       {commentsAdapter && (
