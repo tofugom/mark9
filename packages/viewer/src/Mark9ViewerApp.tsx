@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from "react";
+import { MessageSquare } from "lucide-react";
 import {
   AppLayout,
   useFileStore,
+  useLayoutStore,
   useThemeStore,
   type FileNode,
 } from "@mark9/ui";
 import {
   CommentSidePanel,
+  useCommentsStore,
   type CommentsAdapter,
 } from "@mark9/comments";
 import { Mark9Viewer } from "./Mark9Viewer.js";
@@ -43,6 +46,10 @@ export function Mark9ViewerApp({
   const setActiveFile = useFileStore((s) => s.setActiveFile);
   const activeFile = useFileStore((s) => s.activeFile);
 
+  const commentsPanelOpen = useLayoutStore((s) => s.commentsPanelOpen);
+  const toggleCommentsPanel = useLayoutStore((s) => s.toggleCommentsPanel);
+  const threadCount = useCommentsStore((s) => s.threads.length);
+
   const [content, setContent] = useState<string>("");
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -77,31 +84,47 @@ export function Mark9ViewerApp({
     };
   }, [activeFile, loader]);
 
+  const showCommentsPanel = !!commentsAdapter && commentsPanelOpen;
+
   return (
     <AppLayout
       rightPanel={
-        commentsAdapter ? (
+        showCommentsPanel ? (
           <div className="w-[320px] border-l border-[var(--border-primary)] bg-[var(--bg-app)] overflow-y-auto h-full">
-            <CommentSidePanel author={author} />
+            <CommentSidePanel author={author} onClose={toggleCommentsPanel} />
           </div>
         ) : undefined
       }
     >
-      {loadError ? (
-        <div className="p-6 text-[13px] text-red-500">{loadError}</div>
-      ) : activeFile ? (
-        <Mark9Viewer
-          documentPath={activeFile}
-          markdown={content}
-          commentsAdapter={commentsAdapter}
-          author={author}
-          className="flex-1 min-h-0 overflow-y-auto"
-        />
-      ) : (
-        <div className="p-6 text-[13px] text-[var(--text-secondary)]">
-          Select a file from the sidebar to preview.
-        </div>
-      )}
+      <div className="relative flex-1 min-h-0 flex flex-col">
+        {loadError ? (
+          <div className="p-6 text-[13px] text-red-500">{loadError}</div>
+        ) : activeFile ? (
+          <Mark9Viewer
+            documentPath={activeFile}
+            markdown={content}
+            commentsAdapter={commentsAdapter}
+            author={author}
+            className="flex-1 min-h-0 overflow-y-auto"
+          />
+        ) : (
+          <div className="p-6 text-[13px] text-[var(--text-secondary)]">
+            Select a file from the sidebar to preview.
+          </div>
+        )}
+
+        {commentsAdapter && !commentsPanelOpen && (
+          <button
+            type="button"
+            onClick={toggleCommentsPanel}
+            className="absolute top-2 right-2 z-20 flex items-center gap-1 px-2 h-7 rounded border border-[var(--border-primary)] bg-[var(--bg-app)] text-[12px] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] cursor-pointer shadow-sm"
+            title="Show comments panel"
+          >
+            <MessageSquare size={13} />
+            <span>Comments {threadCount > 0 ? `(${threadCount})` : ""}</span>
+          </button>
+        )}
+      </div>
     </AppLayout>
   );
 }

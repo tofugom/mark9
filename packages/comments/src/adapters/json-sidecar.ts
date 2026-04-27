@@ -153,3 +153,29 @@ export class InMemorySidecarStorage implements SidecarStorage {
     return Object.fromEntries(this.files);
   }
 }
+
+/**
+ * Persists sidecar contents to `window.localStorage`. Suitable for demos and
+ * single-user web apps where you want comments to survive a page refresh
+ * without standing up a server.
+ *
+ * Real production hosts should bring their own `SidecarStorage` (REST,
+ * IndexedDB, OPFS, native FS) — this class is a convenience baseline.
+ */
+export class LocalStorageSidecarStorage implements SidecarStorage {
+  private readonly prefix: string;
+
+  constructor(prefix = "mark9-comments:") {
+    this.prefix = prefix;
+  }
+
+  async read(path: string): Promise<string | null> {
+    if (typeof localStorage === "undefined") return null;
+    return localStorage.getItem(this.prefix + path);
+  }
+
+  async write(path: string, content: string): Promise<void> {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(this.prefix + path, content);
+  }
+}

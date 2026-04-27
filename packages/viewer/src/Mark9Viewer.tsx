@@ -6,8 +6,9 @@ import {
   useCommentsStore,
   type CommentsAdapter,
 } from "@mark9/comments";
-import { useTextSelection } from "./hooks/useTextSelection.js";
+import { useTextSelection, type TextSelection } from "./hooks/useTextSelection.js";
 import { useCommentHighlights } from "./hooks/useCommentHighlights.js";
+import { CommentMargin } from "./components/CommentMargin.js";
 
 export interface Mark9ViewerProps {
   /** Path identifier for the document. Used as the comments key. */
@@ -45,6 +46,7 @@ export function Mark9Viewer({
   const addThread = useCommentsStore((s) => s.addThread);
   const resolved = useCommentsStore((s) => s.resolved);
   const activeThreadId = useCommentsStore((s) => s.activeThreadId);
+  const setActiveThread = useCommentsStore((s) => s.setActiveThread);
 
   // Wire the adapter into the store.
   useEffect(() => {
@@ -78,33 +80,57 @@ export function Mark9Viewer({
   const { selection, clear } = useTextSelection(containerRef);
   useCommentHighlights(containerRef, resolved, activeThreadId);
 
+  // Pin the selection at the moment a bubble first appears so submission no
+  // longer depends on the live native selection (which the browser collapses
+  // when focus moves to the bubble's textarea or its Comment button).
+  const [snap, setSnap] = useState<TextSelection | null>(null);
   const [bubblePos, setBubblePos] = useState<{ x: number; y: number } | null>(null);
 
-  // Position the comment bubble near the selection rect.
+  // Whenever the user makes a fresh selection, capture it. We never auto-clear
+  // `snap` from this effect — only `closeBubble` does.
   useEffect(() => {
-    if (!commentsAdapter || !selection || !containerRef.current) {
+    if (!commentsAdapter) return;
+    if (!selection) return;
+    setSnap(selection);
+  }, [selection, commentsAdapter]);
+
+  // Reset the bubble when the document changes.
+  useEffect(() => {
+    setSnap(null);
+    setBubblePos(null);
+  }, [documentPath]);
+
+  // Position the bubble using the snapshot so it stays pinned even after the
+  // live selection collapses.
+  useEffect(() => {
+    if (!commentsAdapter || !snap || !containerRef.current) {
       setBubblePos(null);
       return;
     }
     const containerRect = containerRef.current.getBoundingClientRect();
     setBubblePos({
-      x: selection.rect.right - containerRect.left + 8,
-      y: selection.rect.top - containerRect.top,
+      x: snap.rect.right - containerRect.left + 8,
+      y: snap.rect.top - containerRect.top,
     });
-  }, [selection, commentsAdapter]);
+  }, [snap, commentsAdapter]);
+
+  function closeBubble() {
+    setSnap(null);
+    clear();
+    window.getSelection()?.removeAllRanges();
+  }
 
   async function handleSubmitComment(body: string) {
-    if (!selection) return;
+    if (!snap) return;
     const text = containerRef.current?.textContent ?? markdown;
-    const anchor = computeAnchor(text, selection.start, selection.end);
+    const anchor = computeAnchor(text, snap.start, snap.end);
     await addThread({
       anchor,
-      quotedText: selection.text,
+      quotedText: snap.text,
       body,
       author,
     });
-    clear();
-    window.getSelection()?.removeAllRanges();
+    closeBubble();
   }
 
   return (
@@ -118,16 +144,21 @@ export function Mark9Viewer({
         readOnly
         className="h-full"
       />
-      {bubblePos && selection && commentsAdapter && (
+      {commentsAdapter && (
+        <CommentMargin
+          containerRef={containerRef}
+          resolved={resolved}
+          activeThreadId={activeThreadId}
+          onSelect={setActiveThread}
+        />
+      )}
+      {bubblePos && snap && commentsAdapter && (
         <CommentBubble
           x={bubblePos.x}
           y={bubblePos.y}
-          selectedText={selection.text}
+          selectedText={snap.text}
           onSubmit={handleSubmitComment}
-          onCancel={() => {
-            clear();
-            window.getSelection()?.removeAllRanges();
-          }}
+          onCancel={closeBubble}
         />
       )}
     </div>

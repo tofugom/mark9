@@ -7,7 +7,7 @@ import {
 } from "@mark9/viewer";
 import {
   JsonSidecarAdapter,
-  InMemorySidecarStorage,
+  LocalStorageSidecarStorage,
 } from "@mark9/comments";
 
 const MOCK_FILES: Record<string, string> = {
@@ -94,11 +94,12 @@ function App() {
 
   const [mode, setMode] = useState<DemoMode>("app");
 
-  // Persistent for the lifetime of the page so comments survive mode switches.
+  // Backed by localStorage so demo comments survive a page refresh.
+  // Real hosts should provide their own `SidecarStorage` (REST, IndexedDB, …).
   const commentsAdapter = useMemo(
     () =>
       new JsonSidecarAdapter({
-        storage: new InMemorySidecarStorage(),
+        storage: new LocalStorageSidecarStorage("mark9-demo:"),
       }),
     [],
   );

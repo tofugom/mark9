@@ -40,7 +40,7 @@ export function CommentBubble({
   return (
     <div
       className="absolute z-50 bg-[var(--bg-app)] border border-[var(--border-primary)] rounded-md shadow-lg"
-      style={{ left: x, top: y, minWidth: 280 }}
+      style={{ left: x, top: y, minWidth: 240 }}
       role="dialog"
       aria-label="Add comment"
     >
@@ -63,8 +63,9 @@ export function CommentBubble({
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="Write a comment…"
-            className="w-full text-[13px] p-2 rounded border border-[var(--border-primary)] bg-[var(--bg-app)] text-[var(--text-primary)] resize-none focus:outline-none focus:border-[var(--accent)]"
-            rows={3}
+            className="w-full text-[13px] p-1.5 rounded border border-[var(--border-primary)] bg-[var(--bg-app)] text-[var(--text-primary)] resize focus:outline-none focus:border-[var(--accent)]"
+            style={{ minHeight: 28, maxHeight: 240, minWidth: 220 }}
+            rows={2}
             onKeyDown={(e) => {
               if (e.key === "Escape") onCancel();
               if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {

@@ -18,6 +18,7 @@ export { resolveAnchor } from "./anchor/resolve.js";
 export {
   JsonSidecarAdapter,
   InMemorySidecarStorage,
+  LocalStorageSidecarStorage,
   type JsonSidecarAdapterOptions,
   type SidecarStorage,
 } from "./adapters/json-sidecar.js";

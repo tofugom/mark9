@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { ResolvedThread } from "@mark9/comments";
+import { rangeFromOffsets } from "../dom-utils.js";
 
 declare global {
   interface Window {
@@ -57,43 +58,3 @@ export function useCommentHighlights(
   }, [containerRef, resolved, activeThreadId]);
 }
 
-function rangeFromOffsets(
-  root: HTMLElement,
-  start: number,
-  end: number,
-): Range | null {
-  const range = document.createRange();
-  const startPos = nodeAtOffset(root, start);
-  const endPos = nodeAtOffset(root, end);
-  if (!startPos || !endPos) return null;
-  try {
-    range.setStart(startPos.node, startPos.offset);
-    range.setEnd(endPos.node, endPos.offset);
-  } catch {
-    return null;
-  }
-  return range;
-}
-
-function nodeAtOffset(
-  root: HTMLElement,
-  offset: number,
-): { node: Node; offset: number } | null {
-  let remaining = offset;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-  let current = walker.nextNode();
-  let last: Node | null = null;
-  while (current) {
-    const len = current.textContent?.length ?? 0;
-    if (remaining <= len) {
-      return { node: current, offset: remaining };
-    }
-    remaining -= len;
-    last = current;
-    current = walker.nextNode();
-  }
-  if (last) {
-    return { node: last, offset: last.textContent?.length ?? 0 };
-  }
-  return null;
-}
