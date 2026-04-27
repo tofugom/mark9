@@ -90,6 +90,7 @@ function buildDecorations(state: EditorState): DecorationSet {
   const cursor = selection.from;
   const decos: Decoration[] = [];
 
+  // Inline marks: bold / italic / code / strikethrough.
   for (const [markName, [open, close]] of Object.entries(MARK_DELIMITERS)) {
     const markType = schema.marks[markName];
     if (!markType) continue;
@@ -101,6 +102,24 @@ function buildDecorations(state: EditorState): DecorationSet {
       Decoration.widget(range.from, () => makeWidget(open), { side: -1 }),
       Decoration.widget(range.to, () => makeWidget(close), { side: 1 }),
     );
+  }
+
+  // Block: heading. When the caret sits inside a heading node, surface its
+  // "# / ## / ###" prefix so the user can see (and adjust) the level.
+  const $cursor = doc.resolve(cursor);
+  for (let depth = $cursor.depth; depth > 0; depth--) {
+    const node = $cursor.node(depth);
+    if (node.type.name === "heading") {
+      const level = (node.attrs.level as number | undefined) ?? 1;
+      const headingStart = $cursor.start(depth);
+      const prefix = `${"#".repeat(level)} `;
+      decos.push(
+        Decoration.widget(headingStart, () => makeWidget(prefix), {
+          side: -1,
+        }),
+      );
+      break;
+    }
   }
 
   return DecorationSet.create(doc, decos);
