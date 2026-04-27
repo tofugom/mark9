@@ -293,6 +293,34 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  packages/viewer:
+    dependencies:
+      '@mark9/comments':
+        specifier: workspace:^
+        version: link:../comments
+      '@mark9/ui':
+        specifier: workspace:^
+        version: link:../ui
+      lucide-react:
+        specifier: ^0.575.0
+        version: 0.575.0(react@19.2.4)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.8
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.0.3
+        version: 19.2.3(@types/react@19.2.14)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.4(react@19.2.4)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
 packages:
 
   '@antfu/install-pkg@1.1.0':
