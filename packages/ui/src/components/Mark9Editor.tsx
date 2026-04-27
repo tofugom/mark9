@@ -13,6 +13,8 @@ import { nord } from "@milkdown/theme-nord";
 import { mermaidPlugin } from "../plugins/mermaid-plugin.js";
 import { imageDropPlugin } from "../plugins/image-drop-plugin.js";
 import { mathPlugin } from "../plugins/math-plugin.js";
+import { syntaxHintPlugin } from "../plugins/syntax-hint-plugin.js";
+import { autoPairPlugin } from "../plugins/auto-pair-plugin.js";
 import { useSettingsStore } from "../stores/settings-store.js";
 
 import type { Ctx } from "@milkdown/kit/ctx";
@@ -69,7 +71,9 @@ function MilkdownEditor({
         .use(listener)
         .use(mermaidPlugin)
         .use(imageDropPlugin)
-        .use(mathPlugin),
+        .use(mathPlugin)
+        .use(syntaxHintPlugin)
+        .use(autoPairPlugin),
     [],
   );
 
