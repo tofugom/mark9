@@ -69,16 +69,21 @@ export function Mark9Viewer({
     setAdapter(commentsAdapter ?? null);
   }, [commentsAdapter, setAdapter]);
 
-  // (Re)load threads whenever the document changes.
+  // (Re)load threads when the document changes. We *intentionally* don't
+  // depend on `markdown` here — re-running this on every keystroke would
+  // hammer the adapter and (worse, when content was in the deps) thrash any
+  // downstream UI. The MutationObserver below keeps the store's
+  // `documentText` fresh during edits.
   useEffect(() => {
     if (!commentsAdapter) return;
-    // Initial seed uses the markdown source; the observer below will keep
-    // the store synced with the rendered DOM as Milkdown finishes mounting.
     void loadFor(documentPath, markdown);
-  }, [documentPath, markdown, commentsAdapter, loadFor]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentPath, commentsAdapter, loadFor]);
 
   // Keep the comments store in sync with the rendered preview's plain text,
-  // so selection offsets line up with what the user actually sees.
+  // so selection offsets line up with what the user actually sees. The
+  // observer is tied to the container only — markdown changes don't restart
+  // it, which would otherwise churn during fast typing.
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !commentsAdapter) return;
@@ -91,7 +96,23 @@ export function Mark9Viewer({
       characterData: true,
     });
     return () => observer.disconnect();
-  }, [commentsAdapter, setDocumentText, documentPath, markdown]);
+  }, [commentsAdapter, setDocumentText]);
+
+  // Track which document we've already fed into the editor. Once non-empty
+  // markdown arrives for `documentPath`, we mount the editor and *never*
+  // re-mount it for further edits within the same document. This is what
+  // protects in-progress typing (and IME composition for languages like
+  // Korean) from being wiped by a key-driven remount.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  useEffect(() => {
+    setLoadedFor(null);
+  }, [documentPath]);
+  useEffect(() => {
+    if (markdown && loadedFor !== documentPath) {
+      setLoadedFor(documentPath);
+    }
+  }, [markdown, documentPath, loadedFor]);
+  const editorMounted = loadedFor === documentPath;
 
   const { selection, clear } = useTextSelection(containerRef);
   useCommentHighlights(containerRef, resolved, activeThreadId);
@@ -152,16 +173,23 @@ export function Mark9Viewer({
   return (
     <div ref={containerRef} className={`relative ${className ?? ""}`}>
       <style>{HIGHLIGHT_STYLES}</style>
-      <Mark9Editor
-        // Remount whenever the source changes so we don't get stuck with an
-        // empty editor while async loaders fill in content. We also include
-        // `editable` so toggling read-only/editable rebuilds the editor state.
-        key={`${documentPath}:${markdown.length}:${editable ? "edit" : "ro"}`}
-        defaultValue={markdown}
-        readOnly={!editable}
-        onChange={editable ? onChange : undefined}
-        className="h-full"
-      />
+      {editorMounted ? (
+        <Mark9Editor
+          // Stable key per document + editable mode. We deliberately do *not*
+          // include `markdown` in the key — Milkdown owns its own state once
+          // mounted and a remount would clobber the user's cursor/selection
+          // and abort active IME composition.
+          key={`${documentPath}:${editable ? "edit" : "ro"}`}
+          defaultValue={markdown}
+          readOnly={!editable}
+          onChange={editable ? onChange : undefined}
+          className="h-full"
+        />
+      ) : (
+        <div className="p-6 text-[13px] text-[var(--text-secondary)]">
+          Loading…
+        </div>
+      )}
       {commentsAdapter && (
         <CommentMargin
           containerRef={containerRef}
