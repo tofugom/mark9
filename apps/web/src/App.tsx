@@ -1,136 +1,80 @@
-import { useEffect, useCallback, useState, useRef } from "react";
+import { useMemo, useState } from "react";
+import { useThemeStore } from "@mark9/ui";
 import {
-  AppLayout,
-  DualEditor,
-  EditorToolbar,
-  useFileStore,
-  useFileActions,
-  useThemeStore,
-  useAutoSave,
-  useEditorStore,
-  useLayoutStore,
-  useCommandStore,
-} from "@mark9/ui";
-import { GitPanel, useGitStore, getFs } from "@mark9/plugin-git";
-import { ExportDialog } from "@mark9/plugin-export";
+  Mark9Viewer,
+  Mark9ViewerApp,
+  MemoryLoader,
+} from "@mark9/viewer";
+import {
+  JsonSidecarAdapter,
+  InMemorySidecarStorage,
+} from "@mark9/comments";
 
 const MOCK_FILES: Record<string, string> = {
-  "/docs/README.md": `# Welcome to Mark9
+  "/docs/README.md": `# Welcome to Mark9 Viewer
 
-A **WYSIWYG** Markdown editor by *tofu9*.
+This is a **read-only** Markdown preview powered by \`@mark9/viewer\`.
 
-## Features
+## Try Commenting
 
-- Bold, italic, and ~~strikethrough~~
-- Headings (H1 through H6)
-- Blockquotes and code blocks
+Select any text in this document — a *comment bubble* will appear at the
+end of your selection. Type a comment, hit **Comment**, and the thread will
+show up in the right-hand panel with the selected text rendered as a quote.
 
-> This is a blockquote. Mark9 renders it beautifully in WYSIWYG mode.
+> Comments anchor to the surrounding context, not just character positions,
+> so they survive most edits to the document body.
 
-### Code Example
-
-\`\`\`javascript
-console.log("Hello, Mark9!");
-\`\`\`
-
-### Lists
-
-1. First item
-2. Second item
-3. Third item
-
-- Unordered item A
-- Unordered item B
-
----
-
-## Architecture
+### Mermaid
 
 \`\`\`mermaid
-graph TD
-    A[Markdown Input] --> B[Milkdown Parser]
-    B --> C[ProseMirror State]
-    C --> D[WYSIWYG View]
-    C --> E[Source View]
+graph LR
+  A[Select text] --> B[Add comment]
+  B --> C[Thread in side panel]
+  C --> D[Anchor stays put]
 \`\`\`
 
-## Math Support
+### GFM
 
-Inline math: $E = mc^2$ and $\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$.
+| Feature | Status |
+|---------|--------|
+| Tables | yes |
+| Task lists | yes |
+| Strikethrough | yes |
+| Math | yes |
 
-Block math:
-
-$$\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}$$
-
-Start editing to see the **WYSIWYG** magic!
+Inline math: $E = mc^2$.
 `,
-  "/docs/guide.md": `# Mark9 User Guide
+  "/docs/guide.md": `# How comments work
 
-## Getting Started
+A comment carries **multiple selectors**:
 
-Mark9 is a WYSIWYG Markdown editor. Just start typing!
+1. **TextQuote** — the exact selected text plus 32 characters of prefix
+   and suffix context.
+2. **TextPosition** — the character offsets at creation time.
+3. **Block** — *(future)* a stable ProseMirror block id.
 
-## Keyboard Shortcuts
+When the document is reloaded the resolver tries them in order and falls
+back gracefully. Anchors that no one can match are kept as **orphans**
+in the sidebar — they never silently vanish.
 
-| Shortcut | Action |
-|----------|--------|
-| Ctrl+B | **Bold** |
-| Ctrl+I | *Italic* |
-| Ctrl+/ | Toggle Source View |
-| Ctrl+S | Save |
-| Ctrl+O | Open File |
-| Ctrl+Shift+E | Toggle Sidebar |
+## Why a sidecar JSON?
 
-## GFM Support
-
-Mark9 supports GitHub Flavored Markdown including:
-
-- [x] Tables
-- [x] Task lists
-- [x] Strikethrough
-- [ ] Footnotes (coming soon)
+The comment data lives in \`<doc>.md.comments.json\`. That keeps
+versioning of the prose itself clean, while still letting the comments
+travel with the documents in a single repo.
 `,
-  "/notes.md": `# Notes
+  "/notes.md": `# Personal notes
 
-## Ideas
+Use this file to try editing-after-the-fact:
 
-- Explore Mermaid.js diagram support
-- Add dark theme and sepia theme
-- Implement Git sync plugin
-
-## References
-
-> The best writing tool is the one that gets out of your way.
-
----
-
-*Last updated: 2026-02-25*
-`,
-  "/todo.md": `# TODO
-
-## Phase 1 — MVP
-- [x] Set up monorepo (Turborepo + pnpm)
-- [x] Integrate Milkdown editor
-- [x] Add GFM support (tables, task lists, strikethrough)
-- [x] Source code view toggle (CodeMirror 6)
-- [x] UI shell (sidebar, title bar, status bar)
-- [x] File open/save
-
-## Phase 2 — Mermaid + Themes
-- [ ] Mermaid.js integration
-- [ ] Diagram inline editing UX
-- [ ] Light / Dark / Sepia themes
-- [ ] Image handling (drag & drop, paste)
-- [ ] Outline panel
-
-## Phase 3 — Git + Desktop
-- [ ] Git plugin (isomorphic-git)
-- [ ] Electrobun desktop app
-- [ ] Native filesystem integration
+- Add a comment to **this** sentence.
+- Then go to the source toggle and lightly modify the surrounding text.
+- Reload — the comment should still attach to the right place because the
+  TextQuote selector matches on prefix/suffix even after small edits.
 `,
 };
 
-const mockFileTree = [
+const MOCK_FILE_TREE = [
   {
     name: "docs",
     path: "/docs",
@@ -141,217 +85,126 @@ const mockFileTree = [
     ],
   },
   { name: "notes.md", path: "/notes.md", type: "file" as const },
-  { name: "todo.md", path: "/todo.md", type: "file" as const },
 ];
+
+type DemoMode = "app" | "embed";
 
 function App() {
   useThemeStore();
-  useAutoSave();
 
-  const setFileTree = useFileStore((s) => s.setFileTree);
-  const setActiveFile = useFileStore((s) => s.setActiveFile);
-  const setDirty = useFileStore((s) => s.setDirty);
-  const activeFile = useFileStore((s) => s.activeFile);
-  const currentContent = useFileStore((s) => s.currentContent);
-  const setCurrentContent = useFileStore((s) => s.setCurrentContent);
-  const { handleSave, handleOpenFile } = useFileActions();
+  const [mode, setMode] = useState<DemoMode>("app");
 
-  const gitBranch = useGitStore((s) => s.currentBranch);
-  const gitFileStatuses = useGitStore((s) => s.fileStatuses);
-
-  const [fileContents, setFileContents] = useState<Record<string, string>>(MOCK_FILES);
-  const [showExportDialog, setShowExportDialog] = useState(false);
-
-  useEffect(() => {
-    setFileTree(mockFileTree);
-    setActiveFile("/docs/README.md");
-    setCurrentContent(MOCK_FILES["/docs/README.md"]);
-
-    (async () => {
-      try {
-        const fs = getFs();
-        const pfs = fs.promises;
-        await pfs.mkdir("/docs").catch(() => {});
-        for (const [path, content] of Object.entries(MOCK_FILES)) {
-          await pfs.writeFile(path, content, "utf8");
-        }
-        const gitStore = useGitStore.getState();
-        await gitStore.setRepoDir("/");
-        if (!useGitStore.getState().isGitRepo) {
-          await gitStore.initRepo();
-          await gitStore.stageAll();
-          await gitStore.commit("Initial commit");
-        }
-        await gitStore.refreshStatus();
-        await gitStore.refreshLog();
-      } catch (err) {
-        console.warn("[git] Failed to initialize git repo:", err);
-      }
-    })();
-  }, [setFileTree, setActiveFile, setCurrentContent]);
-
-  useEffect(() => {
-    if (activeFile && currentContent && !fileContents[activeFile]) {
-      setFileContents((prev) => ({ ...prev, [activeFile]: currentContent }));
-    }
-  }, [activeFile, currentContent, fileContents]);
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key === "s") {
-        e.preventDefault();
-        handleSave();
-      }
-      if (mod && e.key === "o") {
-        e.preventDefault();
-        handleOpenFile();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave, handleOpenFile]);
-
-  useEffect(() => {
-    const editorStore = useEditorStore.getState();
-    const layoutStore = useLayoutStore.getState();
-    const themeStore = useThemeStore.getState();
-    const gitStore = useGitStore.getState();
-
-    useCommandStore.getState().registerCommands([
-      {
-        id: "editor.toggleMode",
-        label: "Toggle WYSIWYG / Source",
-        category: "Editor",
-        shortcut: "Ctrl+/",
-        execute: () => editorStore.toggleMode(),
-      },
-      {
-        id: "file.open",
-        label: "Open File",
-        category: "File",
-        shortcut: "Ctrl+O",
-        execute: () => handleOpenFile(),
-      },
-      {
-        id: "file.save",
-        label: "Save",
-        category: "File",
-        shortcut: "Ctrl+S",
-        execute: () => handleSave(),
-      },
-      {
-        id: "view.toggleSidebar",
-        label: "Toggle Sidebar",
-        category: "View",
-        shortcut: "Ctrl+Shift+E",
-        execute: () => layoutStore.toggleSidebar(),
-      },
-      {
-        id: "theme.light",
-        label: "Switch to Light Theme",
-        category: "Theme",
-        execute: () => useThemeStore.getState().setTheme("light"),
-      },
-      {
-        id: "theme.dark",
-        label: "Switch to Dark Theme",
-        category: "Theme",
-        execute: () => useThemeStore.getState().setTheme("dark"),
-      },
-      {
-        id: "theme.sepia",
-        label: "Switch to Sepia Theme",
-        category: "Theme",
-        execute: () => useThemeStore.getState().setTheme("sepia"),
-      },
-      {
-        id: "theme.cycle",
-        label: "Cycle Theme",
-        category: "Theme",
-        execute: () => themeStore.cycleTheme(),
-      },
-      {
-        id: "git.stageAll",
-        label: "Stage All Changes",
-        category: "Git",
-        execute: () => void gitStore.stageAll(),
-      },
-      {
-        id: "git.commit",
-        label: "Commit Staged Changes",
-        category: "Git",
-        execute: () => {
-          const msg = prompt("Commit message:");
-          if (msg) void gitStore.commit(msg);
-        },
-      },
-      {
-        id: "git.refresh",
-        label: "Refresh Git Status",
-        category: "Git",
-        execute: () => void gitStore.refreshStatus(),
-      },
-      {
-        id: "export.dialog",
-        label: "Export Document...",
-        category: "Export",
-        execute: () => setShowExportDialog(true),
-      },
-    ]);
-  }, [handleSave, handleOpenFile]);
-
-  const writeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleChange = useCallback(
-    (markdown: string) => {
-      if (activeFile) {
-        setFileContents((prev) => ({ ...prev, [activeFile]: markdown }));
-
-        if (writeTimerRef.current) clearTimeout(writeTimerRef.current);
-        writeTimerRef.current = setTimeout(() => {
-          const fs = getFs();
-          fs.promises
-            .writeFile(activeFile, markdown, "utf8")
-            .then(() => {
-              useGitStore.getState().refreshStatus();
-            })
-            .catch(() => {});
-        }, 1000);
-      }
-      setCurrentContent(markdown);
-      setDirty(true);
-    },
-    [activeFile, setCurrentContent, setDirty],
+  // Persistent for the lifetime of the page so comments survive mode switches.
+  const commentsAdapter = useMemo(
+    () =>
+      new JsonSidecarAdapter({
+        storage: new InMemorySidecarStorage(),
+      }),
+    [],
   );
-
-  const editorContent = activeFile ? (fileContents[activeFile] ?? "") : "";
+  const loader = useMemo(() => new MemoryLoader(MOCK_FILES), []);
 
   return (
-    <>
-      <AppLayout
-        gitPanel={<GitPanel />}
-        branch={gitBranch}
-        gitFileStatuses={gitFileStatuses}
-      >
-        <div className="flex flex-col h-full">
-          <EditorToolbar onSave={handleSave} />
-          <DualEditor
-            key={activeFile ?? "default"}
-            defaultValue={editorContent}
-            onChange={handleChange}
-            className="flex-1 min-h-0"
+    <div className="h-screen w-screen flex flex-col overflow-hidden">
+      <DemoModeBar mode={mode} onChange={setMode} />
+      <div className="flex-1 min-h-0">
+        {mode === "app" ? (
+          <Mark9ViewerApp
+            files={MOCK_FILE_TREE}
+            loader={loader}
+            commentsAdapter={commentsAdapter}
+            author="demo-user"
+            initialPath="/docs/README.md"
           />
-        </div>
-      </AppLayout>
+        ) : (
+          <EmbedDemo
+            commentsAdapter={commentsAdapter}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
 
-      <ExportDialog
-        isOpen={showExportDialog}
-        onClose={() => setShowExportDialog(false)}
-        markdown={currentContent}
-        fileName={activeFile?.split("/").pop() ?? "document.md"}
+function DemoModeBar({
+  mode,
+  onChange,
+}: {
+  mode: DemoMode;
+  onChange(mode: DemoMode): void;
+}) {
+  return (
+    <div className="h-9 flex items-center gap-2 px-3 border-b border-[var(--border-primary)] bg-[var(--bg-toolbar)] text-[12px]">
+      <span className="font-semibold text-[var(--text-primary)]">Mark9 Viewer</span>
+      <span className="text-[var(--text-secondary)]">demo</span>
+      <div className="flex-1" />
+      <span className="text-[var(--text-secondary)]">Mode:</span>
+      <button
+        type="button"
+        onClick={() => onChange("app")}
+        className={`px-2 h-[24px] rounded ${
+          mode === "app"
+            ? "bg-[var(--toolbar-btn-active-bg)] text-[var(--toolbar-btn-active-text)] border border-[var(--toolbar-btn-active-border)]"
+            : "text-[var(--toolbar-btn-inactive-text)] hover:bg-[var(--toolbar-btn-hover-bg)]"
+        }`}
+      >
+        Full app shell
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("embed")}
+        className={`px-2 h-[24px] rounded ${
+          mode === "embed"
+            ? "bg-[var(--toolbar-btn-active-bg)] text-[var(--toolbar-btn-active-text)] border border-[var(--toolbar-btn-active-border)]"
+            : "text-[var(--toolbar-btn-inactive-text)] hover:bg-[var(--toolbar-btn-hover-bg)]"
+        }`}
+      >
+        Embedded component
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Standalone-component demo: shows what host apps see when they drop
+ * `<Mark9Viewer>` into their own layout.
+ */
+function EmbedDemo({
+  commentsAdapter,
+}: {
+  commentsAdapter: JsonSidecarAdapter;
+}) {
+  const [path, setPath] = useState<keyof typeof MOCK_FILES>("/docs/README.md");
+
+  return (
+    <div className="h-full grid grid-cols-[200px_1fr] bg-[var(--bg-app)]">
+      <aside className="border-r border-[var(--border-primary)] p-3 flex flex-col gap-1">
+        <div className="text-[11px] uppercase tracking-widest text-[var(--text-secondary)] mb-1">
+          Files
+        </div>
+        {Object.keys(MOCK_FILES).map((p) => (
+          <button
+            type="button"
+            key={p}
+            onClick={() => setPath(p as keyof typeof MOCK_FILES)}
+            className={`text-left text-[13px] px-2 py-1 rounded ${
+              p === path
+                ? "bg-[var(--bg-active)] text-white"
+                : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+      </aside>
+      <Mark9Viewer
+        documentPath={path}
+        markdown={MOCK_FILES[path]!}
+        commentsAdapter={commentsAdapter}
+        author="demo-user"
+        className="overflow-y-auto p-6"
       />
-    </>
+    </div>
   );
 }
 

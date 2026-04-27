@@ -67,6 +67,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@mark9/comments':
+        specifier: workspace:*
+        version: link:../../packages/comments
       '@mark9/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -79,6 +82,9 @@ importers:
       '@mark9/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@mark9/viewer':
+        specifier: workspace:*
+        version: link:../../packages/viewer
       katex:
         specifier: ^0.16.33
         version: 0.16.33

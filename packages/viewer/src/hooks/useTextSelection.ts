@@ -34,6 +34,18 @@ export function useTextSelection(
       const container = containerRef.current;
       if (!container) return;
 
+      // When focus moves into a form element (e.g., the comment bubble's
+      // textarea), the browser collapses the previous text selection. Ignoring
+      // these events keeps the captured selection alive while the user is
+      // interacting with the popover.
+      const focused = document.activeElement;
+      if (
+        focused instanceof HTMLElement &&
+        (focused.tagName === "TEXTAREA" || focused.tagName === "INPUT")
+      ) {
+        return;
+      }
+
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
         setSelection(null);

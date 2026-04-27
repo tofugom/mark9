@@ -41,6 +41,7 @@ export function Mark9Viewer({
 
   const setAdapter = useCommentsStore((s) => s.setAdapter);
   const loadFor = useCommentsStore((s) => s.loadFor);
+  const setDocumentText = useCommentsStore((s) => s.setDocumentText);
   const addThread = useCommentsStore((s) => s.addThread);
   const resolved = useCommentsStore((s) => s.resolved);
   const activeThreadId = useCommentsStore((s) => s.activeThreadId);
@@ -53,11 +54,26 @@ export function Mark9Viewer({
   // (Re)load threads whenever the document changes.
   useEffect(() => {
     if (!commentsAdapter) return;
-    // Use textContent of the rendered preview as the "document text" for
-    // anchoring so offsets line up with what the user actually selects.
-    const text = containerRef.current?.textContent ?? markdown;
-    void loadFor(documentPath, text);
+    // Initial seed uses the markdown source; the observer below will keep
+    // the store synced with the rendered DOM as Milkdown finishes mounting.
+    void loadFor(documentPath, markdown);
   }, [documentPath, markdown, commentsAdapter, loadFor]);
+
+  // Keep the comments store in sync with the rendered preview's plain text,
+  // so selection offsets line up with what the user actually sees.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !commentsAdapter) return;
+    const sync = () => setDocumentText(container.textContent ?? "");
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(container, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
+    return () => observer.disconnect();
+  }, [commentsAdapter, setDocumentText, documentPath, markdown]);
 
   const { selection, clear } = useTextSelection(containerRef);
   useCommentHighlights(containerRef, resolved, activeThreadId);
@@ -95,7 +111,9 @@ export function Mark9Viewer({
     <div ref={containerRef} className={`relative ${className ?? ""}`}>
       <style>{HIGHLIGHT_STYLES}</style>
       <Mark9Editor
-        key={documentPath}
+        // Read-only viewer: remount whenever the source changes so we don't
+        // get stuck with an empty editor while async loaders fill in content.
+        key={`${documentPath}:${markdown.length}`}
         defaultValue={markdown}
         readOnly
         className="h-full"
