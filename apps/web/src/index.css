@@ -441,6 +441,21 @@
   border-top-color: #d4b896;
 }
 
+/* ──────────────────────────────────────────────────────────────────
+ * Markdown syntax hint (cursor-aware delimiters around active mark)
+ * ────────────────────────────────────────────────────────────────── */
+.mark9-syntax-hint {
+  color: var(--text-secondary);
+  opacity: 0.6;
+  font-weight: normal;
+  font-style: normal;
+  user-select: none;
+}
+
+[data-theme="dark"] .mark9-syntax-hint {
+  opacity: 0.55;
+}
+
 .mermaid-placeholder {
   padding: 2rem;
   text-align: center;

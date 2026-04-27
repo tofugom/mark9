@@ -1,6 +1,11 @@
 import React, { useRef } from "react";
 import { Milkdown, MilkdownProvider, useEditor } from "@milkdown/react";
-import { Editor, rootCtx, defaultValueCtx } from "@milkdown/kit/core";
+import {
+  Editor,
+  rootCtx,
+  defaultValueCtx,
+  editorViewOptionsCtx,
+} from "@milkdown/kit/core";
 import { commonmark } from "@milkdown/kit/preset/commonmark";
 import { gfm } from "@milkdown/kit/preset/gfm";
 import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
@@ -8,48 +13,48 @@ import { nord } from "@milkdown/theme-nord";
 import { mermaidPlugin } from "../plugins/mermaid-plugin.js";
 import { imageDropPlugin } from "../plugins/image-drop-plugin.js";
 import { mathPlugin } from "../plugins/math-plugin.js";
-import {
-  ySyncMilkdownPlugin,
-  yCursorMilkdownPlugin,
-  yUndoMilkdownPlugin,
-} from "@mark9/collab";
+import { syntaxHintPlugin } from "../plugins/syntax-hint-plugin.js";
+import { tabTrapPlugin } from "../plugins/tab-trap-plugin.js";
+import { useSettingsStore } from "../stores/settings-store.js";
 
 import type { Ctx } from "@milkdown/kit/ctx";
-import type { CollabConfig } from "@mark9/collab";
 
 export interface Mark9EditorProps {
-  /** Initial markdown content (only used on mount, ignored in collab mode). */
+  /** Initial markdown content. */
   defaultValue?: string;
   /** Called whenever the markdown content changes. */
   onChange?: (markdown: string) => void;
   /** Additional CSS class name for the editor wrapper. */
   className?: string;
-  /** When provided, enables collaborative editing via Yjs. */
-  collabConfig?: CollabConfig | null;
+  /** When true, the editor renders read-only (preview / viewer mode). */
+  readOnly?: boolean;
 }
 
 function MilkdownEditor({
   defaultValue,
   onChange,
-  collabConfig,
+  readOnly,
 }: Omit<Mark9EditorProps, "className">): React.ReactElement {
-  // Use refs so the editor doesn't reinitialize on prop changes
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
   const defaultValueRef = useRef(defaultValue);
+  const readOnlyRef = useRef(readOnly);
 
   useEditor(
-    (root: HTMLElement) => {
-      const editor = Editor.make()
+    (root: HTMLElement) =>
+      Editor.make()
         .config(nord)
         .config((ctx: Ctx) => {
           ctx.set(rootCtx, root);
-          // Always set defaultValue when available. In collab mode:
-          // - Host (empty fragment): ySyncPlugin writes PM content → fragment
-          // - Joiner (synced fragment): ySyncPlugin overwrites PM with fragment content
           if (defaultValueRef.current) {
             ctx.set(defaultValueCtx, defaultValueRef.current);
+          }
+          if (readOnlyRef.current) {
+            ctx.update(editorViewOptionsCtx, (prev) => ({
+              ...prev,
+              editable: () => false,
+            }));
           }
           ctx
             .get(listenerCtx)
@@ -66,19 +71,10 @@ function MilkdownEditor({
         .use(listener)
         .use(mermaidPlugin)
         .use(imageDropPlugin)
-        .use(mathPlugin);
-
-      // Add Yjs collab plugins synchronously when collab is active
-      if (collabConfig) {
-        editor
-          .use(ySyncMilkdownPlugin(collabConfig.xmlFragment))
-          .use(yCursorMilkdownPlugin(collabConfig.awareness))
-          .use(yUndoMilkdownPlugin());
-      }
-
-      return editor;
-    },
-    [], // Editor is recreated via key-based remount, not via deps
+        .use(mathPlugin)
+        .use(syntaxHintPlugin)
+        .use(tabTrapPlugin),
+    [],
   );
 
   return <Milkdown />;
@@ -88,18 +84,17 @@ export function Mark9Editor({
   defaultValue,
   onChange,
   className,
-  collabConfig,
+  readOnly,
 }: Mark9EditorProps): React.ReactElement {
-  // Key includes collab state so the entire editor remounts when collab starts/stops
-  const collabKey = collabConfig ? "collab" : "solo";
+  const fontSize = useSettingsStore((s) => s.fontSize);
 
   return (
-    <MilkdownProvider key={collabKey}>
-      <div className={className}>
+    <MilkdownProvider>
+      <div className={className} style={{ fontSize: `${fontSize}px` }}>
         <MilkdownEditor
           defaultValue={defaultValue}
           onChange={onChange}
-          collabConfig={collabConfig}
+          readOnly={readOnly}
         />
       </div>
     </MilkdownProvider>

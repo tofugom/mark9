@@ -5,13 +5,13 @@ import { useFileStore } from "../stores/file-store.js";
 import { useThemeStore } from "../stores/theme-store.js";
 
 export interface StatusBarProps {
-  /** Optional collab connection status element. */
-  collabStatus?: React.ReactNode;
+  /** Optional extra element rendered at the right end of the status bar. */
+  extra?: React.ReactNode;
   /** Current git branch name (defaults to "main"). */
   branch?: string;
 }
 
-export function StatusBar({ collabStatus, branch }: StatusBarProps = {}): React.ReactElement {
+export function StatusBar({ extra, branch }: StatusBarProps = {}): React.ReactElement {
   const cursorLine = useEditorStore((s) => s.cursorLine);
   const cursorCol = useEditorStore((s) => s.cursorCol);
   const mode = useEditorStore((s) => s.mode);
@@ -62,7 +62,7 @@ export function StatusBar({ collabStatus, branch }: StatusBarProps = {}): React.
           <span>{themeLabel}</span>
         </button>
         <span>GFM</span>
-        {collabStatus}
+        {extra}
       </div>
     </div>
   );

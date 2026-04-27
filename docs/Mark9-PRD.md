@@ -710,3 +710,178 @@ quadrantChart
 - **결정:** isomorphic-git
 - **근거:** 순수 JS, 브라우저/Node.js 양쪽 동작, MIT 라이선스
 - **제한:** 일부 고급 Git 기능 미지원 (rebase, worktree 등)
+
+---
+
+## 14. Phase 5 — Web Library + Comments Pivot (2026-04-27)
+
+### 14.1 방향 전환
+
+기존 Phase 1~4가 **데스크톱 우선 WYSIWYG 에디터 제품**을 향했다면,
+Phase 5에서는 mark9를 **다른 웹 앱에 임베드 가능한 마크다운 뷰어 + 코멘트 라이브러리**로 재포지셔닝합니다.
+
+**제거되는 범위:**
+- 실시간 동시 편집 (Yjs/`@mark9/collab`, `apps/server`) — 단일 사용자 시나리오로 단순화
+- 데스크톱 앱은 잠시 Phase 5 동안 동결 (Electrobun 코드는 유지하되 우선순위 낮춤)
+
+**신규 핵심:**
+- 특정 경로의 `.md` 파일을 클릭 → 즉시 **렌더링된 미리보기** 표시
+- 사용자가 본문 텍스트를 선택해 **댓글** 부착 (Slack 캔버스 스타일: 인용문 + 스레드)
+- 두 가지 사용 형태로 export
+  1. **컴포넌트형**: `<Mark9Viewer src="..." commentsAdapter={...} />` — 호스트 앱이 라우팅/사이드바/저장 책임
+  2. **풀 앱 셸형**: 사이드바(파일 트리) + 뷰어 + 코멘트 패널을 묶은 통합 컴포넌트
+
+### 14.2 코멘트 데이터 모델
+
+#### 핵심 결정: 다중 셀렉터(multi-selector) 앵커
+
+문서 본문이 편집되더라도 코멘트가 살아남는 확률을 최대화하기 위해,
+한 개의 코멘트 앵커는 **여러 종류의 셀렉터**를 함께 저장합니다.
+매칭 시 fallback 순서로 시도합니다.
+
+```typescript
+interface CommentAnchor {
+  selectors: Selector[]; // 우선순위 순
+}
+
+type Selector =
+  | TextQuoteSelector      // exact + prefix(32) + suffix(32) — 본문 편집에 강함
+  | TextPositionSelector   // start/end offset — 빠른 매칭, 정렬에 유용
+  | BlockSelector;         // ProseMirror 블록 ID — 가장 안정적
+
+interface CommentThread {
+  id: string;
+  documentPath: string;
+  anchor: CommentAnchor;
+  messages: CommentMessage[];
+  status: "open" | "resolved" | "orphaned";
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface CommentMessage {
+  id: string;
+  author: string;
+  body: string;        // markdown 허용
+  createdAt: string;
+  editedAt?: string;
+}
+```
+
+#### 매칭 알고리즘
+
+1. `BlockSelector` 시도 → 블록 ID가 살아있고 해당 블록 내 텍스트가 일치하면 즉시 채택
+2. `TextQuoteSelector` exact 일치 시도
+3. `TextQuoteSelector` 퍼지 매칭 (prefix/suffix 부분 일치, Levenshtein ≤ 임계치)
+4. `TextPositionSelector`로 추정 위치 표시 (정확도 낮음 마크)
+5. 모두 실패 → `status: "orphaned"`로 이동, "재앵커링이 필요한 댓글" 트레이에 노출 (삭제하지 않음)
+
+### 14.3 저장소 추상화
+
+```typescript
+interface CommentsAdapter {
+  list(documentPath: string): Promise<CommentThread[]>;
+  create(documentPath: string, thread: Omit<CommentThread, "id" | "createdAt" | "updatedAt">): Promise<CommentThread>;
+  update(threadId: string, patch: Partial<CommentThread>): Promise<CommentThread>;
+  delete(threadId: string): Promise<void>;
+  reanchor(threadId: string, anchor: CommentAnchor): Promise<CommentThread>;
+}
+```
+
+#### 어댑터 구현 (현재/향후)
+
+| 어댑터 | 저장 위치 | 용도 |
+|--------|----------|------|
+| `JsonSidecarAdapter` (Phase 5 기본) | `<doc>.md.comments.json` | 단일 사용자, 정적 호스팅 시나리오 |
+| `MarkdownEmbeddedAdapter` (옵션) | `.md` 본문 하단 `<!-- mark9:comments ... -->` 블록 | 단일 파일 휴대성이 필요한 export 시나리오 |
+| `RestAdapter` (Phase 6+) | 외부 REST API | 멀티유저, 알림, 권한 |
+| `SqliteAdapter` (Phase 6+) | 서버 사이드 SQLite/Postgres | 대규모 코멘트 데이터, 검색 |
+
+> **저장소를 바꿔도 앵커 스키마는 동일**합니다. 이게 Phase 5에서 적당한 시점에 C(서버 DB)로 이전할 수 있게 해주는 핵심 설계 의사결정입니다.
+
+### 14.4 신규/변경 패키지 구조
+
+```
+packages/
+├── core/                    # 기존 — 변경 없음
+├── ui/                      # 기존 — 컴포넌트 일부 viewer로 이동
+├── plugin-git/              # 기존 — 옵션 의존성으로 격하
+├── plugin-export/           # 기존
+├── viewer/                  # NEW — 읽기 전용 Mark9Viewer 컴포넌트
+│   └── src/
+│       ├── Mark9Viewer.tsx              # <Mark9Viewer src markdown commentsAdapter />
+│       ├── Mark9ViewerApp.tsx           # 풀 앱 셸 (sidebar + viewer + comments)
+│       └── adapters/                    # 파일 로더 (path → markdown)
+└── comments/                # NEW
+    └── src/
+        ├── types.ts                     # CommentThread, Anchor, Selector
+        ├── anchor/
+        │   ├── compute.ts               # 텍스트 선택 → CommentAnchor 생성
+        │   └── resolve.ts               # CommentAnchor → 현재 문서상 위치 매칭
+        ├── adapters/
+        │   ├── json-sidecar.ts          # JsonSidecarAdapter
+        │   └── markdown-embedded.ts     # MarkdownEmbeddedAdapter (옵션)
+        ├── prosemirror/
+        │   └── comment-decorations.ts   # 하이라이트 데코레이션
+        ├── stores/
+        │   └── comments-store.ts        # Zustand
+        └── components/
+            ├── CommentBubble.tsx        # 선택 후 "Add comment" 팝오버
+            ├── CommentThreadView.tsx    # 인용문 + 스레드 렌더
+            └── CommentSidePanel.tsx     # 우측 패널
+
+apps/
+├── web/                     # 데모 앱으로 재정의 — 라이브러리 사용 예시
+└── desktop/                 # 동결 (Phase 5 동안 변경 없음)
+
+(삭제) apps/server, packages/collab
+```
+
+### 14.5 Phase 5 작업 단계
+
+```mermaid
+gantt
+    title Phase 5 — Web Library + Comments
+    dateFormat YYYY-MM-DD
+    section 정리
+    Collab 코드 제거                     :p5_1, 2026-04-27, 1d
+    PRD/계획 업데이트                    :p5_2, 2026-04-27, 1d
+    section 패키지
+    @mark9/comments 스켈레톤 + 앵커 모델 :p5_3, after p5_1, 3d
+    JsonSidecarAdapter                   :p5_4, after p5_3, 2d
+    @mark9/viewer 컴포넌트               :p5_5, after p5_1, 3d
+    section UI
+    텍스트 선택 → CommentBubble          :p5_6, after p5_3, 2d
+    CommentSidePanel + 스레드 UI         :p5_7, after p5_6, 3d
+    Orphan 트레이                        :p5_8, after p5_7, 2d
+    section 통합
+    풀 앱 셸 (Mark9ViewerApp)            :p5_9, after p5_5, 2d
+    데모 앱 마이그레이션                 :p5_10, after p5_9, 2d
+    E2E 테스트                           :p5_11, after p5_10, 3d
+```
+
+### 14.6 비-목표 (Phase 5)
+
+- 멀티 유저 인증/권한 — 호스트 앱이 책임 (코멘트 어댑터에 author 정보만 전달)
+- 실시간 코멘트 업데이트 — Phase 6+ 에서 어댑터 단에서 polling/SSE/WS 결정
+- @mention, 알림 — Phase 6+
+- 코멘트 검색 — Phase 6+
+- 데스크톱 앱 통합 — Phase 5 동결, Phase 6 이후 결정
+
+### 14.7 ADR (추가)
+
+#### ADR-004: 코멘트 앵커는 다중 셀렉터로 표현
+
+- **상태:** 승인
+- **맥락:** 본문 편집 후에도 코멘트 인용 영역이 살아남아야 함
+- **결정:** `TextQuoteSelector` + `TextPositionSelector` + `BlockSelector` 의 fallback 체인
+- **근거:** Hypothes.is가 사용하는 W3C Web Annotation 모델의 검증된 패턴. 단일 셀렉터로는 본문 편집 시 50% 이상 깨짐
+- **대안:** 위치 기반 단독 (취약), AST 경로 단독 (구조 변경에 취약), 블록 ID 단독 (블록 스플릿/병합에 취약)
+
+#### ADR-005: 코멘트 저장은 어댑터 패턴 + JSON 사이드카 기본
+
+- **상태:** 승인
+- **맥락:** 라이브러리 사용처가 정적 호스팅(단일 유저)부터 SaaS 서버 백엔드까지 다양함
+- **결정:** `CommentsAdapter` 인터페이스로 추상화, 기본 구현은 `JsonSidecarAdapter` (`<doc>.md.comments.json`)
+- **근거:** 정적 사이트/데모/단일 유저 시나리오에서 즉시 동작. SaaS 시나리오는 호스트 앱이 `RestAdapter` 구현을 주입하면 됨
+- **마이그레이션 비용:** 앵커 스키마가 어댑터에 독립이므로, 사이드카 → DB 이전은 export/import 스크립트 한 번이면 충분

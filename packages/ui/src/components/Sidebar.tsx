@@ -3,7 +3,7 @@ import {
   Files,
   GitBranch,
   Settings,
-  Users,
+  MessageSquare,
   ChevronRight,
   ChevronDown,
   FileText,
@@ -15,7 +15,7 @@ import { useFileActions } from "../hooks/useFileActions.js";
 import { SettingsPanel } from "./SettingsPanel.js";
 import type { FileNode } from "../stores/file-store.js";
 
-type ActivityTab = "files" | "git" | "collab" | "settings";
+type ActivityTab = "files" | "git" | "comments" | "settings";
 
 /** Git status badge colors */
 const GIT_STATUS_COLORS: Record<string, { text: string; label: string }> = {
@@ -121,7 +121,7 @@ function ActivityBar({
       icon: <GitBranch size={24} />,
       label: "Source Control",
     },
-    { tab: "collab", icon: <Users size={24} />, label: "Collaboration" },
+    { tab: "comments", icon: <MessageSquare size={24} />, label: "Comments" },
     { tab: "settings", icon: <Settings size={24} />, label: "Settings" },
   ];
 
@@ -150,13 +150,13 @@ function ActivityBar({
 export interface SidebarProps {
   /** Optional custom Git panel to render when the "git" tab is active */
   gitPanel?: React.ReactNode;
-  /** Optional custom Collab panel to render when the "collab" tab is active */
-  collabPanel?: React.ReactNode;
+  /** Optional custom Comments panel to render when the "comments" tab is active */
+  extraPanel?: React.ReactNode;
   /** Git file statuses for showing badges on file tree items */
   gitFileStatuses?: { filepath: string; status: string }[];
 }
 
-export function Sidebar({ gitPanel, collabPanel, gitFileStatuses }: SidebarProps = {}): React.ReactElement | null {
+export function Sidebar({ gitPanel, extraPanel, gitFileStatuses }: SidebarProps = {}): React.ReactElement | null {
   const sidebarOpen = useLayoutStore((s) => s.sidebarOpen);
   const sidebarWidth = useLayoutStore((s) => s.sidebarWidth);
   const fileTree = useFileStore((s) => s.fileTree);
@@ -189,7 +189,7 @@ export function Sidebar({ gitPanel, collabPanel, gitFileStatuses }: SidebarProps
         <div className="h-[35px] flex items-center px-5 text-[11px] font-semibold text-[var(--text-sidebar)] uppercase tracking-widest">
           {activeTab === "files" && "Explorer"}
           {activeTab === "git" && "Source Control"}
-          {activeTab === "collab" && "Collaboration"}
+          {activeTab === "comments" && "Comments"}
           {activeTab === "settings" && "Settings"}
         </div>
 
@@ -222,10 +222,10 @@ export function Sidebar({ gitPanel, collabPanel, gitFileStatuses }: SidebarProps
           )
         )}
 
-        {activeTab === "collab" && (
-          collabPanel ?? (
+        {activeTab === "comments" && (
+          extraPanel ?? (
             <div className="px-5 py-3 text-[13px] text-[var(--text-secondary)]">
-              Start or join a collaboration session
+              No comments yet. Select text in the document to add one.
             </div>
           )
         )}
