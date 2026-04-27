@@ -1,14 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useThemeStore } from "@mark9/ui";
 import {
   Mark9Viewer,
   Mark9ViewerApp,
-  MemoryLoader,
+  type DocumentLoader,
 } from "@mark9/viewer";
 import {
   JsonSidecarAdapter,
-  LocalStorageSidecarStorage,
+  type SidecarStorage,
 } from "@mark9/comments";
+import { getFs } from "@mark9/plugin-git";
 
 const MOCK_FILES: Record<string, string> = {
   "/docs/README.md": `# Welcome to Mark9 Viewer
@@ -87,23 +88,81 @@ const MOCK_FILE_TREE = [
   { name: "notes.md", path: "/notes.md", type: "file" as const },
 ];
 
+/**
+ * DocumentLoader backed by the project's LightningFS instance — the same
+ * virtual filesystem the git plugin uses. The MD files live as real entries
+ * in the FS, persisted in IndexedDB.
+ */
+class LightningFsLoader implements DocumentLoader {
+  async load(path: string): Promise<string> {
+    const buf = await getFs().promises.readFile(path, "utf8");
+    return typeof buf === "string" ? buf : new TextDecoder().decode(buf);
+  }
+}
+
+/**
+ * SidecarStorage that writes `<doc>.md.comments.json` next to each markdown
+ * file in the same LightningFS instance. This is the closest in-browser
+ * representation of the on-disk sidecar pattern from PRD §14.
+ */
+class LightningFsSidecarStorage implements SidecarStorage {
+  async read(path: string): Promise<string | null> {
+    try {
+      const buf = await getFs().promises.readFile(path, "utf8");
+      return typeof buf === "string" ? buf : new TextDecoder().decode(buf);
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === "ENOENT") return null;
+      throw err;
+    }
+  }
+
+  async write(path: string, content: string): Promise<void> {
+    await getFs().promises.writeFile(path, content, "utf8");
+  }
+}
+
 type DemoMode = "app" | "embed";
 
 function App() {
   useThemeStore();
 
   const [mode, setMode] = useState<DemoMode>("app");
+  const [fsReady, setFsReady] = useState(false);
 
-  // Backed by localStorage so demo comments survive a page refresh.
-  // Real hosts should provide their own `SidecarStorage` (REST, IndexedDB, …).
+  // Seed the virtual FS with the demo MD files. We only write a file if it
+  // doesn't already exist, so user edits / saved comments survive a refresh.
+  useEffect(() => {
+    (async () => {
+      const fs = getFs();
+      await fs.promises.mkdir("/docs").catch(() => {});
+      for (const [path, content] of Object.entries(MOCK_FILES)) {
+        try {
+          await fs.promises.stat(path);
+        } catch {
+          await fs.promises.writeFile(path, content, "utf8");
+        }
+      }
+      setFsReady(true);
+    })().catch((err) => {
+      console.error("[demo] failed to seed LightningFS", err);
+      setFsReady(true);
+    });
+  }, []);
+
+  const loader = useMemo(() => new LightningFsLoader(), []);
   const commentsAdapter = useMemo(
-    () =>
-      new JsonSidecarAdapter({
-        storage: new LocalStorageSidecarStorage("mark9-demo:"),
-      }),
+    () => new JsonSidecarAdapter({ storage: new LightningFsSidecarStorage() }),
     [],
   );
-  const loader = useMemo(() => new MemoryLoader(MOCK_FILES), []);
+
+  if (!fsReady) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center text-[var(--text-secondary)]">
+        Initializing virtual filesystem…
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden">
@@ -119,6 +178,7 @@ function App() {
           />
         ) : (
           <EmbedDemo
+            loader={loader}
             commentsAdapter={commentsAdapter}
           />
         )}
@@ -137,7 +197,7 @@ function DemoModeBar({
   return (
     <div className="h-9 flex items-center gap-2 px-3 border-b border-[var(--border-primary)] bg-[var(--bg-toolbar)] text-[12px]">
       <span className="font-semibold text-[var(--text-primary)]">Mark9 Viewer</span>
-      <span className="text-[var(--text-secondary)]">demo</span>
+      <span className="text-[var(--text-secondary)]">demo (LightningFS)</span>
       <div className="flex-1" />
       <span className="text-[var(--text-secondary)]">Mode:</span>
       <button
@@ -171,11 +231,24 @@ function DemoModeBar({
  * `<Mark9Viewer>` into their own layout.
  */
 function EmbedDemo({
+  loader,
   commentsAdapter,
 }: {
+  loader: DocumentLoader;
   commentsAdapter: JsonSidecarAdapter;
 }) {
-  const [path, setPath] = useState<keyof typeof MOCK_FILES>("/docs/README.md");
+  const [path, setPath] = useState<string>("/docs/README.md");
+  const [content, setContent] = useState<string>("");
+
+  useEffect(() => {
+    let cancelled = false;
+    loader.load(path).then((md) => {
+      if (!cancelled) setContent(md);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [path, loader]);
 
   return (
     <div className="h-full grid grid-cols-[200px_1fr] bg-[var(--bg-app)]">
@@ -187,7 +260,7 @@ function EmbedDemo({
           <button
             type="button"
             key={p}
-            onClick={() => setPath(p as keyof typeof MOCK_FILES)}
+            onClick={() => setPath(p)}
             className={`text-left text-[13px] px-2 py-1 rounded ${
               p === path
                 ? "bg-[var(--bg-active)] text-white"
@@ -200,7 +273,7 @@ function EmbedDemo({
       </aside>
       <Mark9Viewer
         documentPath={path}
-        markdown={MOCK_FILES[path]!}
+        markdown={content}
         commentsAdapter={commentsAdapter}
         author="demo-user"
         className="overflow-y-auto p-6"
