@@ -299,11 +299,44 @@ Agent 1 (Infrastructure)
 
 Agent 1 (Infrastructure) 부터 시작하며, 완료 즉시 Agent 2와 Agent 4를 병렬 실행합니다.
 
+---
 
+## 6. Phase 5 — Web Library + Comments 작업 순서 (2026-04-27 추가)
 
-```java
-public static void main(String[] args){
-  
-}
-```
+상세 사양은 PRD §14 참고.
+
+### Step 1: Collab 제거 (정리)
+- `apps/server`, `packages/collab` 폴더 삭제
+- `apps/web/src/App.tsx`, `packages/ui/src/components/Mark9Editor.tsx`, `packages/ui/src/components/DualEditor.tsx`에서 `@mark9/collab` import 및 사용처 제거
+- `pnpm-workspace.yaml`, 루트 `package.json` 정리
+- `pnpm install` → 의존성 잠금 갱신
+
+### Step 2: `@mark9/comments` 패키지
+- `packages/comments/` 신규 생성
+- 타입 (`CommentThread`, `CommentAnchor`, `Selector`)
+- 앵커 compute/resolve 알고리즘
+- `JsonSidecarAdapter` 구현
+- ProseMirror 데코레이션 (인용 영역 하이라이트)
+- Zustand 스토어
+
+### Step 3: `@mark9/viewer` 패키지
+- `packages/viewer/` 신규 생성
+- `<Mark9Viewer src markdown commentsAdapter />` — 컴포넌트형
+- `<Mark9ViewerApp files commentsAdapter />` — 풀 앱 셸 (사이드바 + 뷰어 + 코멘트 패널)
+- Milkdown `editable: false` 모드 사용
+
+### Step 4: 코멘트 UI
+- 선택 영역 감지 → `CommentBubble` 팝오버 ("Add comment")
+- `CommentSidePanel`: 인용문 + 스레드 + 답글 입력
+- Orphan 코멘트 트레이 (재앵커 UI)
+
+### Step 5: 데모 앱 (`apps/web`) 마이그레이션
+- 기존 `App.tsx` 단순화 → 라이브러리 사용 예시로 재구성
+- 두 가지 데모 모드: `<Mark9Viewer>` 단독 사용 / `<Mark9ViewerApp>` 풀 앱
+
+### Step 6: E2E 테스트
+- Playwright: 파일 클릭 → 미리보기 표시
+- 텍스트 선택 → 코멘트 작성 → 사이드 패널에 인용문 + 코멘트 노출
+- 본문 일부 수정 후 새로고침 → 코멘트 앵커 살아남는지 확인
+- 본문 대폭 수정 → 코멘트 orphan 트레이로 이동 확인
 

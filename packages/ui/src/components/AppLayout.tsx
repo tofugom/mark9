@@ -12,10 +12,12 @@ export interface AppLayoutProps {
   children: React.ReactNode;
   /** Optional custom Git panel passed through to the Sidebar */
   gitPanel?: React.ReactNode;
-  /** Optional custom Collab panel passed through to the Sidebar */
-  collabPanel?: React.ReactNode;
-  /** Optional collab connection status for the StatusBar */
-  collabStatus?: React.ReactNode;
+  /** Optional custom panel rendered below the file tree (e.g. comments). */
+  extraSidebarPanel?: React.ReactNode;
+  /** Optional right-side panel (e.g. comments side panel). When omitted, Outline is shown. */
+  rightPanel?: React.ReactNode;
+  /** Optional content rendered in the StatusBar (right side). */
+  statusBarExtra?: React.ReactNode;
   /** Current git branch name */
   branch?: string;
   /** Git file statuses for file tree badges */
@@ -25,8 +27,9 @@ export interface AppLayoutProps {
 export function AppLayout({
   children,
   gitPanel,
-  collabPanel,
-  collabStatus,
+  extraSidebarPanel,
+  rightPanel,
+  statusBarExtra,
   branch,
   gitFileStatuses,
 }: AppLayoutProps): React.ReactElement {
@@ -51,12 +54,12 @@ export function AppLayout({
       <TitleBar />
 
       <div className="flex flex-row flex-1 overflow-hidden">
-        <Sidebar gitPanel={gitPanel} collabPanel={collabPanel} gitFileStatuses={gitFileStatuses} />
+        <Sidebar gitPanel={gitPanel} extraPanel={extraSidebarPanel} gitFileStatuses={gitFileStatuses} />
         <EditorArea>{children}</EditorArea>
-        <Outline />
+        {rightPanel ?? <Outline />}
       </div>
 
-      <StatusBar collabStatus={collabStatus} branch={branch} />
+      <StatusBar extra={statusBarExtra} branch={branch} />
       <CommandPalette />
     </div>
   );

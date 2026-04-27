@@ -5,13 +5,13 @@ import { useFileStore } from "../stores/file-store.js";
 
 export interface EditorToolbarProps {
   onSave?: () => void;
-  /** Optional user avatars element for collab mode. */
-  collabAvatars?: React.ReactNode;
+  /** Optional element rendered between the mode toggle and the Save button. */
+  rightSlot?: React.ReactNode;
 }
 
 export function EditorToolbar({
   onSave,
-  collabAvatars,
+  rightSlot,
 }: EditorToolbarProps): React.ReactElement {
   const mode = useEditorStore((s) => s.mode);
   const toggleMode = useEditorStore((s) => s.toggleMode);
@@ -50,8 +50,7 @@ export function EditorToolbar({
 
       <div className="flex-1" />
 
-      {/* Collab avatars */}
-      {collabAvatars}
+      {rightSlot}
 
       {/* Save button */}
       {onSave && (

@@ -1,5 +1,33 @@
 # Mark9 개발 워크로그
 
+## 2026-04-27 — Phase 5 착수: Web Library + Comments 피벗
+
+### 방향 전환
+
+mark9를 데스크톱 우선 에디터 제품에서 **다른 웹 앱에 임베드 가능한 마크다운 뷰어 + 코멘트 라이브러리**로 재포지셔닝.
+
+- 실시간 동시 편집(`@mark9/collab`, `apps/server`) 제거 — 단일 사용자 시나리오로 단순화
+- 신규 패키지: `@mark9/viewer` (읽기 전용 미리보기), `@mark9/comments` (다중 셀렉터 앵커 + 어댑터 패턴)
+- 라이브러리 형태: 컴포넌트형(`<Mark9Viewer />`) + 풀 앱 셸형(`<Mark9ViewerApp />`) 모두 export
+
+### 주요 설계 의사결정 (PRD §14, ADR-004/005 참고)
+
+- **앵커**: `TextQuoteSelector` + `TextPositionSelector` + `BlockSelector` 다중 셀렉터, fallback 매칭. 매칭 실패 시 코멘트는 삭제하지 않고 orphan 트레이로 이동
+- **저장소 추상화**: `CommentsAdapter` 인터페이스. 기본은 `JsonSidecarAdapter` (`<doc>.md.comments.json`). 호스트 앱이 REST/DB 어댑터 주입 가능
+- **데스크톱 앱**: Phase 5 동안 동결, 코드는 유지
+
+### 작업 진행 상황
+
+- [x] Worktree `worktree-web-library-comments` 생성
+- [x] PRD §14 (Phase 5) 추가, ADR-004/005 등록
+- [ ] Collab 코드 제거 (`apps/server`, `packages/collab`, `App.tsx` 참조 정리)
+- [ ] `@mark9/comments` 패키지 스켈레톤
+- [ ] `@mark9/viewer` 패키지 스켈레톤
+- [ ] 코멘트 UI (선택 → 버블 → 사이드 패널)
+- [ ] 데모 앱 (`apps/web`) 마이그레이션
+
+---
+
 ## 2026-02-26 — Phase 2: Mermaid, 테마, 코드블럭 강화
 
 ### 완료 항목
